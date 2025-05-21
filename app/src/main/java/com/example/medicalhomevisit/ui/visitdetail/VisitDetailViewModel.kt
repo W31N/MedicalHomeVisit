@@ -11,6 +11,7 @@ import com.example.medicalhomevisit.domain.repository.VisitRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class VisitDetailViewModel(
@@ -25,8 +26,29 @@ class VisitDetailViewModel(
     private val _patientState = MutableStateFlow<PatientState>(PatientState.Loading)
     val patientState: StateFlow<PatientState> = _patientState.asStateFlow()
 
+    // Флаг офлайн режима
+    private val _isOffline = MutableStateFlow(false)
+    val isOffline: StateFlow<Boolean> = _isOffline.asStateFlow()
+
     init {
         loadVisitDetails()
+        observeVisitChanges()
+    }
+
+    private fun observeVisitChanges() {
+        // Наблюдение за изменениями визита в реальном времени (если поддерживается репозиторием)
+        viewModelScope.launch {
+            try {
+                visitRepository.observeVisits().collectLatest { visits ->
+                    val updatedVisit = visits.find { it.id == visitId }
+                    updatedVisit?.let {
+                        _uiState.value = VisitDetailUiState.Success(it)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("VisitDetail", "Error observing visits: ${e.message}", e)
+            }
+        }
     }
 
     private fun loadVisitDetails() {
@@ -42,7 +64,21 @@ class VisitDetailViewModel(
                 loadPatientDetails(visit.patientId)
             } catch (e: Exception) {
                 Log.e("VisitDetail", "Error loading visit: ${e.message}", e)
-                _uiState.value = VisitDetailUiState.Error(e.message ?: "Неизвестная ошибка")
+
+                // Проверяем, есть ли кэшированные данные
+                try {
+                    val cachedVisits = visitRepository.getCachedVisits()
+                    val cachedVisit = cachedVisits.find { it.id == visitId }
+                    if (cachedVisit != null) {
+                        _uiState.value = VisitDetailUiState.Success(cachedVisit)
+                        _isOffline.value = true
+                        loadPatientDetails(cachedVisit.patientId)
+                    } else {
+                        _uiState.value = VisitDetailUiState.Error(e.message ?: "Неизвестная ошибка")
+                    }
+                } catch (cacheEx: Exception) {
+                    _uiState.value = VisitDetailUiState.Error(e.message ?: "Неизвестная ошибка")
+                }
             }
         }
     }
@@ -55,9 +91,38 @@ class VisitDetailViewModel(
                 // Получаем пациента из репозитория
                 val patient = patientRepository.getPatientById(patientId)
                 _patientState.value = PatientState.Success(patient)
+
+                // Для наблюдения за изменениями пациента в реальном времени
+                observePatientChanges(patientId)
             } catch (e: Exception) {
                 Log.e("VisitDetail", "Error loading patient: ${e.message}", e)
-                _patientState.value = PatientState.Error(e.message ?: "Ошибка загрузки данных пациента")
+
+                // Проверяем кэш
+                try {
+                    val cachedPatients = patientRepository.getCachedPatients()
+                    val cachedPatient = cachedPatients.find { it.id == patientId }
+                    if (cachedPatient != null) {
+                        _patientState.value = PatientState.Success(cachedPatient)
+                        _isOffline.value = true
+                    } else {
+                        _patientState.value = PatientState.Error(e.message ?: "Ошибка загрузки данных пациента")
+                    }
+                } catch (cacheEx: Exception) {
+                    _patientState.value = PatientState.Error(e.message ?: "Ошибка загрузки данных пациента")
+                }
+            }
+        }
+    }
+
+    private fun observePatientChanges(patientId: String) {
+        viewModelScope.launch {
+            try {
+                patientRepository.observePatient(patientId).collectLatest { patient ->
+                    _patientState.value = PatientState.Success(patient)
+                }
+            } catch (e: Exception) {
+                // Ошибка при наблюдении игнорируется, так как у нас уже есть данные
+                Log.e("VisitDetail", "Error observing patient: ${e.message}", e)
             }
         }
     }
@@ -67,16 +132,39 @@ class VisitDetailViewModel(
             try {
                 Log.d("VisitDetail", "Updating status to: $newStatus")
 
+                // Для мгновенного обновления UI без ожидания перезагрузки
+                (_uiState.value as? VisitDetailUiState.Success)?.let { currentState ->
+                    val updatedVisit = currentState.visit.copy(status = newStatus)
+                    _uiState.value = VisitDetailUiState.Success(updatedVisit)
+                }
+
                 // Обновляем статус в репозитории
                 visitRepository.updateVisitStatus(visitId, newStatus)
 
-                // Обновляем UI - перезагружаем данные из репозитория
-                loadVisitDetails()
+                // Если мы не наблюдаем за изменениями в реальном времени,
+                // обновляем UI - перезагружаем данные из репозитория
+                // Убираем эту строку, если используем observeVisitChanges
+                // loadVisitDetails()
 
                 Log.d("VisitDetail", "Status updated successfully")
             } catch (e: Exception) {
                 Log.e("VisitDetail", "Error updating status: ${e.message}", e)
-                // Обработка ошибки
+                _isOffline.value = true
+                // В случае ошибки возвращаем предыдущее состояние
+                loadVisitDetails()
+            }
+        }
+    }
+
+    // Метод для повторной синхронизации при восстановлении соединения
+    fun syncData() {
+        viewModelScope.launch {
+            try {
+                visitRepository.syncVisits()
+                _isOffline.value = false
+                loadVisitDetails()
+            } catch (e: Exception) {
+                Log.e("VisitDetail", "Error syncing data: ${e.message}", e)
             }
         }
     }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -24,7 +25,8 @@ import com.example.medicalhomevisit.ui.components.*
 @Composable
 fun VisitListScreen(
     viewModel: VisitListViewModel,
-    onVisitClick: (Visit) -> Unit
+    onVisitClick: (Visit) -> Unit,
+    onProfileClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isOffline by viewModel.isOffline.collectAsState()
@@ -50,6 +52,10 @@ fun VisitListScreen(
                     }
                     IconButton(onClick = { viewModel.loadVisits() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Обновить")
+                    }
+                    // Добавляем кнопку профиля
+                    IconButton(onClick = onProfileClick) {
+                        Icon(Icons.Default.Person, contentDescription = "Профиль")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

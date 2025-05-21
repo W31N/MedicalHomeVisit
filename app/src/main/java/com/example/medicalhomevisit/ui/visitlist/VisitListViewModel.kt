@@ -9,6 +9,7 @@ import com.example.medicalhomevisit.domain.repository.VisitRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -41,6 +42,23 @@ class VisitListViewModel(
 
     init {
         loadVisits()
+        observeVisits()
+    }
+
+    private fun observeVisits() {
+        viewModelScope.launch {
+            try {
+                visitRepository.observeVisits().collectLatest { visits ->
+                    if (visits.isNotEmpty()) {
+                        _allVisits.value = visits
+                        applyFilters()
+                        _isOffline.value = false  // Успешное получение данных
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("VisitList", "Error observing visits: ${e.message}", e)
+            }
+        }
     }
 
     fun loadVisits() {
@@ -55,9 +73,42 @@ class VisitListViewModel(
 
                 // Применяем текущие фильтры
                 applyFilters()
+
+                // Сброс флага офлайн-режима
+                _isOffline.value = false
             } catch (e: Exception) {
                 Log.e("VisitList", "Error loading visits: ${e.message}", e)
-                _uiState.value = VisitListUiState.Error(e.message ?: "Неизвестная ошибка")
+
+                // Пробуем загрузить из кэша
+                try {
+                    val cachedVisits = visitRepository.getCachedVisits()
+                    if (cachedVisits.isNotEmpty()) {
+                        _allVisits.value = cachedVisits
+                        applyFilters()
+                        _isOffline.value = true  // Установка флага офлайн-режима
+                    } else {
+                        _uiState.value = VisitListUiState.Error(e.message ?: "Неизвестная ошибка")
+                    }
+                } catch (cacheEx: Exception) {
+                    _uiState.value = VisitListUiState.Error(e.message ?: "Неизвестная ошибка")
+                }
+            }
+        }
+    }
+
+    // Синхронизация данных (для использования при восстановлении подключения)
+    fun syncVisits() {
+        viewModelScope.launch {
+            try {
+                val result = visitRepository.syncVisits()
+                if (result.isSuccess) {
+                    val visits = result.getOrNull() ?: emptyList()
+                    _allVisits.value = visits
+                    applyFilters()
+                    _isOffline.value = false
+                }
+            } catch (e: Exception) {
+                Log.e("VisitList", "Error syncing visits: ${e.message}", e)
             }
         }
     }
@@ -65,7 +116,19 @@ class VisitListViewModel(
     // Обновляем дату фильтра
     fun updateSelectedDate(date: Date) {
         _filterParams.update { it.copy(selectedDate = date) }
-        applyFilters()
+
+        // Загружаем визиты для выбранной даты
+        viewModelScope.launch {
+            try {
+                val visits = visitRepository.getVisitsForDate(date)
+                _allVisits.value = visits
+                applyFilters()
+            } catch (e: Exception) {
+                Log.e("VisitList", "Error loading visits for date: ${e.message}", e)
+                // В случае ошибки оставляем текущие данные и просто применяем фильтры
+                applyFilters()
+            }
+        }
     }
 
     // Обновляем статус фильтра
@@ -118,24 +181,39 @@ class VisitListViewModel(
     fun updateVisitStatus(visitId: String, newStatus: VisitStatus) {
         viewModelScope.launch {
             try {
+                // Оптимистично обновляем UI
+                val currentVisits = _allVisits.value.toMutableList()
+                val index = currentVisits.indexOfFirst { it.id == visitId }
+
+                if (index != -1) {
+                    val updatedVisit = currentVisits[index].copy(status = newStatus)
+                    currentVisits[index] = updatedVisit
+                    _allVisits.value = currentVisits
+                    applyFilters()
+                }
+
+                // Выполняем обновление в репозитории
                 visitRepository.updateVisitStatus(visitId, newStatus)
-                loadVisits() // Перезагружаем список визитов
+
+                // Если нужно, перезагрузить данные
+                // loadVisits() - но это не обязательно, если работает observeVisits()
             } catch (e: Exception) {
                 Log.e("VisitList", "Error updating visit status: ${e.message}", e)
-                // Обработка ошибки
+                // В случае ошибки перезагружаем данные
+                loadVisits()
             }
         }
     }
 }
 
-// Параметры фильтрации
+// Параметры фильтрации (без изменений)
 data class FilterParams(
     val selectedDate: Date = Calendar.getInstance().time,
     val selectedStatus: VisitStatus? = null,
     val groupingType: GroupingType = GroupingType.TIME
 )
 
-// Типы группировки визитов
+// Типы группировки визитов (без изменений)
 enum class GroupingType {
     NONE,      // Без группировки
     TIME,      // По времени (утро, день, вечер)

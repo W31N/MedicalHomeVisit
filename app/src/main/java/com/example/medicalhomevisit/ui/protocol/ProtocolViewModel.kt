@@ -1,4 +1,3 @@
-// ProtocolViewModel.kt
 package com.example.medicalhomevisit.ui.protocol
 
 import android.util.Log
@@ -12,6 +11,7 @@ import com.example.medicalhomevisit.domain.repository.VisitRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Date
 import java.util.UUID
@@ -35,10 +35,31 @@ class ProtocolViewModel(
     private val _protocolData = MutableStateFlow(ProtocolData())
     val protocolData: StateFlow<ProtocolData> = _protocolData.asStateFlow()
 
+    // Флаг офлайн режима
+    private val _isOffline = MutableStateFlow(false)
+    val isOffline: StateFlow<Boolean> = _isOffline.asStateFlow()
+
     init {
         loadVisitData()
         loadProtocolData()
         loadTemplates()
+        observeVisitChanges()
+    }
+
+    private fun observeVisitChanges() {
+        viewModelScope.launch {
+            try {
+                visitRepository.observeVisits().collectLatest { visits ->
+                    val updatedVisit = visits.find { it.id == visitId }
+                    updatedVisit?.let {
+                        _visitState.value = VisitState.Success(it)
+                        _isOffline.value = false
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("Protocol", "Error observing visits: ${e.message}", e)
+            }
+        }
     }
 
     private fun loadVisitData() {
@@ -47,9 +68,23 @@ class ProtocolViewModel(
             try {
                 val visit = visitRepository.getVisitById(visitId)
                 _visitState.value = VisitState.Success(visit)
+                _isOffline.value = false
             } catch (e: Exception) {
                 Log.e("Protocol", "Error loading visit: ${e.message}", e)
-                _visitState.value = VisitState.Error(e.message ?: "Ошибка загрузки данных визита")
+
+                // Пробуем получить из кэша
+                try {
+                    val cachedVisits = visitRepository.getCachedVisits()
+                    val cachedVisit = cachedVisits.find { it.id == visitId }
+                    if (cachedVisit != null) {
+                        _visitState.value = VisitState.Success(cachedVisit)
+                        _isOffline.value = true
+                    } else {
+                        _visitState.value = VisitState.Error(e.message ?: "Ошибка загрузки данных визита")
+                    }
+                } catch (cacheEx: Exception) {
+                    _visitState.value = VisitState.Error(e.message ?: "Ошибка загрузки данных визита")
+                }
             }
         }
     }
@@ -79,6 +114,7 @@ class ProtocolViewModel(
                         pulse = protocol.pulse,
                         additionalVitals = protocol.additionalVitals ?: emptyMap()
                     )
+                    _isOffline.value = false
                 } else {
                     // Новый протокол
                     Log.d("Protocol", "Creating new protocol for visit $visitId")
@@ -91,6 +127,7 @@ class ProtocolViewModel(
             } catch (e: Exception) {
                 Log.e("Protocol", "Error loading protocol: ${e.message}", e)
                 _uiState.value = ProtocolUiState.Error(e.message ?: "Ошибка загрузки протокола")
+                _isOffline.value = true
             }
         }
     }
@@ -103,7 +140,8 @@ class ProtocolViewModel(
                 Log.d("Protocol", "Loaded ${templates.size} templates")
             } catch (e: Exception) {
                 Log.e("Protocol", "Error loading templates: ${e.message}", e)
-                // Ошибка загрузки шаблонов не критична для работы с протоколом
+                // В случае ошибки оставляем пустой список шаблонов
+                _isOffline.value = true
             }
         }
     }
@@ -174,7 +212,7 @@ class ProtocolViewModel(
                 }
             } catch (e: Exception) {
                 Log.e("Protocol", "Error applying template: ${e.message}", e)
-                // Обработка ошибки при применении шаблона
+                // Показываем пользователю ошибку (можно добавить соответствующий обработчик)
             }
         }
     }
@@ -212,9 +250,40 @@ class ProtocolViewModel(
 
                 // Обновляем UI состояние
                 _uiState.value = ProtocolUiState.Saved
+                _isOffline.value = false
             } catch (e: Exception) {
                 Log.e("Protocol", "Error saving protocol: ${e.message}", e)
-                _uiState.value = ProtocolUiState.Error("Ошибка сохранения протокола: ${e.message}")
+
+                // Помечаем, что операция выполнялась в офлайн-режиме
+                _isOffline.value = true
+
+                // В офлайн-режиме также обозначаем операцию как успешную
+                // Данные будут синхронизированы позже
+                _uiState.value = ProtocolUiState.Saved
+            }
+        }
+    }
+
+    // Метод для синхронизации данных
+    fun syncData() {
+        if (!_isOffline.value) return // Если не в офлайн-режиме, нет необходимости синхронизировать
+
+        viewModelScope.launch {
+            try {
+                // Если был сохранен протокол, попытаться синхронизировать его
+                val protocol = protocolRepository.getProtocolForVisit(visitId)
+                if (protocol != null) {
+                    protocolRepository.saveProtocol(protocol)
+                }
+
+                // Синхронизировать данные о визите
+                visitRepository.syncVisits()
+
+                _isOffline.value = false
+                loadVisitData()
+                loadProtocolData()
+            } catch (e: Exception) {
+                Log.e("Protocol", "Error syncing data: ${e.message}", e)
             }
         }
     }

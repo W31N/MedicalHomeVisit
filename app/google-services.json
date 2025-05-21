@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1009285388809",
+    "project_id": "medicalhomevisit-76679",
+    "storage_bucket": "medicalhomevisit-76679.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1009285388809:android:c8bb5202925968a3ba36d8",
+        "android_client_info": {
+          "package_name": "com.example.medicalhomevisit"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRcCgdgPGGSB6RbzhppVdLUw4dgYuWJnk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
