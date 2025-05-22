@@ -2,9 +2,11 @@
 package com.example.medicalhomevisit.data.repository
 
 import android.util.Log
+import com.example.medicalhomevisit.data.model.Gender
 import com.example.medicalhomevisit.data.model.User
 import com.example.medicalhomevisit.data.model.UserRole
 import com.example.medicalhomevisit.domain.repository.AuthRepository
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.UserProfileChangeRequest
@@ -15,26 +17,68 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.util.Date
 
 class FirebaseAuthRepository : AuthRepository {
     private val auth: FirebaseAuth = Firebase.auth
     private val usersCollection = Firebase.firestore.collection("users")
+    private val patientsCollection = Firebase.firestore.collection("patients") // Добавьте ссылку на коллекцию пациентов
 
+    // В FirebaseAuthRepository.kt
     override val currentUser: Flow<User?> = callbackFlow {
-        val listener = FirebaseAuth.AuthStateListener { auth ->
-            trySend(auth.currentUser?.let { firebaseUser ->
-                User(
-                    id = firebaseUser.uid,
-                    email = firebaseUser.email ?: "",
-                    displayName = firebaseUser.displayName ?: "",
-                    isEmailVerified = firebaseUser.isEmailVerified
-                )
-            })
+        Log.d(TAG, "currentUser Flow: Listener attached.")
+        val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            val firebaseUser = firebaseAuth.currentUser
+            if (firebaseUser != null) {
+                Log.d(TAG, "currentUser Flow: AuthState changed, firebaseUser is NOT null. UID: ${firebaseUser.uid}")
+                usersCollection.document(firebaseUser.uid).get()
+                    .addOnSuccessListener { documentSnapshot ->
+                        val role = if (documentSnapshot.exists()) {
+                            val roleStr = documentSnapshot.getString("role")
+                            Log.d(TAG, "currentUser Flow: User doc exists. Role string from Firestore: $roleStr")
+                            try { UserRole.valueOf(roleStr ?: UserRole.PATIENT.name) }
+                            catch (e: IllegalArgumentException) {
+                                Log.w(TAG, "currentUser Flow: Invalid role string '$roleStr', defaulting to PATIENT.")
+                                UserRole.PATIENT
+                            }
+                        } else {
+                            Log.w(TAG, "currentUser Flow: User document NOT found in Firestore for UID: ${firebaseUser.uid}. Defaulting role to PATIENT.")
+                            UserRole.PATIENT
+                        }
+                        val userToSend = User(
+                            id = firebaseUser.uid,
+                            email = firebaseUser.email ?: "",
+                            displayName = firebaseUser.displayName ?: "",
+                            role = role,
+                            isEmailVerified = firebaseUser.isEmailVerified
+                        )
+                        Log.d(TAG, "currentUser Flow: Trying to send user: $userToSend")
+                        val offerResult = trySend(userToSend)
+                        Log.d(TAG, "currentUser Flow: trySend(user) result: ${offerResult.isSuccess}")
+
+                    }
+                    .addOnFailureListener { exception ->
+                        Log.e(TAG, "currentUser Flow: Error fetching user role from Firestore for UID: ${firebaseUser.uid}", exception)
+                        val errorUser = User(
+                            id = firebaseUser.uid,
+                            email = firebaseUser.email ?: "",
+                            displayName = firebaseUser.displayName ?: "",
+                            role = UserRole.PATIENT, // Дефолтная роль при ошибке
+                            isEmailVerified = firebaseUser.isEmailVerified
+                        )
+                        Log.d(TAG, "currentUser Flow: Trying to send user (on failure): $errorUser")
+                        val offerResult = trySend(errorUser)
+                        Log.d(TAG, "currentUser Flow: trySend(user on failure) result: ${offerResult.isSuccess}")
+                    }
+            } else {
+                Log.d(TAG, "currentUser Flow: AuthState changed, firebaseUser is NULL.")
+                val offerResult = trySend(null)
+                Log.d(TAG, "currentUser Flow: trySend(null) result: ${offerResult.isSuccess}")
+            }
         }
-
         auth.addAuthStateListener(listener)
-
         awaitClose {
+            Log.d(TAG, "currentUser Flow: Listener removed.")
             auth.removeAuthStateListener(listener)
         }
     }
@@ -43,42 +87,24 @@ class FirebaseAuthRepository : AuthRepository {
         return try {
             val authResult = auth.signInWithEmailAndPassword(email, password).await()
             val firebaseUser = authResult.user
-                ?: return Result.failure(Exception("Unknown error occurred during sign in"))
+                ?: return Result.failure(Exception("Неизвестная ошибка при входе"))
 
-            // Попытка получить дополнительные данные о пользователе из Firestore
-            try {
-                val userDoc = usersCollection.document(firebaseUser.uid).get().await()
-                val role = if (userDoc.exists()) {
-                    val roleStr = userDoc.getString("role") ?: "MEDICAL_STAFF"
-                    UserRole.valueOf(roleStr)
-                } else {
-                    // Создаем запись пользователя, если его нет в базе
-                    val defaultUserData = hashMapOf(
-                        "email" to (firebaseUser.email ?: ""),
-                        "displayName" to (firebaseUser.displayName ?: ""),
-                        "role" to UserRole.MEDICAL_STAFF.name
-                    )
-                    usersCollection.document(firebaseUser.uid).set(defaultUserData).await()
-                    UserRole.MEDICAL_STAFF
-                }
-
-                Result.success(User(
-                    id = firebaseUser.uid,
-                    email = firebaseUser.email ?: "",
-                    displayName = firebaseUser.displayName ?: "",
-                    role = role,
-                    isEmailVerified = firebaseUser.isEmailVerified
-                ))
-            } catch (e: Exception) {
-                // Если не удалось получить дополнительные данные, возвращаем базовые
-                Log.e(TAG, "Error fetching user data from Firestore", e)
-                Result.success(User(
-                    id = firebaseUser.uid,
-                    email = firebaseUser.email ?: "",
-                    displayName = firebaseUser.displayName ?: "",
-                    isEmailVerified = firebaseUser.isEmailVerified
-                ))
+            val userDoc = usersCollection.document(firebaseUser.uid).get().await()
+            val role = if (userDoc.exists()) {
+                UserRole.valueOf(userDoc.getString("role") ?: UserRole.MEDICAL_STAFF.name)
+            } else {
+                // Этого не должно происходить при входе, т.к. пользователь уже должен быть в users
+                Log.w(TAG, "User document not found in Firestore for UID: ${firebaseUser.uid} during sign in. Defaulting role.")
+                UserRole.MEDICAL_STAFF // Или другая логика по умолчанию
             }
+
+            Result.success(User(
+                id = firebaseUser.uid,
+                email = firebaseUser.email ?: "",
+                displayName = firebaseUser.displayName ?: "",
+                role = role,
+                isEmailVerified = firebaseUser.isEmailVerified
+            ))
         } catch (e: FirebaseAuthException) {
             Log.e(TAG, "Sign in error: ${e.message}", e)
             Result.failure(e)
@@ -92,23 +118,42 @@ class FirebaseAuthRepository : AuthRepository {
         return try {
             val authResult = auth.createUserWithEmailAndPassword(email, password).await()
             val firebaseUser = authResult.user
-                ?: return Result.failure(Exception("Unknown error occurred during sign up"))
+                ?: return Result.failure(Exception("Произошла неизвестная ошибка при регистрации"))
 
-            // Установка отображаемого имени
             val profileUpdates = UserProfileChangeRequest.Builder()
                 .setDisplayName(displayName)
                 .build()
-
             firebaseUser.updateProfile(profileUpdates).await()
 
-            // Сохранение дополнительных данных в Firestore
             val userData = hashMapOf(
                 "email" to email,
                 "displayName" to displayName,
-                "role" to role.name // Используем предоставленную роль (по умолчанию PATIENT)
+                "role" to role.name
             )
-
             usersCollection.document(firebaseUser.uid).set(userData).await()
+
+            if (role == UserRole.PATIENT) {
+                Log.d(TAG, "User role is PATIENT, creating patient record in 'patients' collection.")
+                val patientData = hashMapOf(
+                    "fullName" to displayName,
+                    // dateOfBirth и gender НЕ устанавливаем здесь, если они не приходят как параметры
+                    // Они будут null или UNKNOWN по умолчанию в модели Patient,
+                    // а в Firestore эти поля просто не будут созданы или будут null
+                    "dateOfBirth" to null, // Явно null, если не передается
+                    "gender" to Gender.UNKNOWN.name, // Явно UNKNOWN, если не передается
+                    "address" to "Адрес не указан", // Или пустая строка, если это предпочтительнее
+                    "phoneNumber" to "Телефон не указан", // Или пустая строка
+                    "policyNumber" to "",
+                    "allergies" to emptyList<String>(),
+                    "chronicConditions" to emptyList<String>()
+                )
+                try {
+                    patientsCollection.document(firebaseUser.uid).set(patientData).await()
+                    Log.d(TAG, "Patient record created successfully for UID: ${firebaseUser.uid}")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error creating patient record in 'patients' collection: ${e.message}", e)
+                }
+            }
 
             Result.success(User(
                 id = firebaseUser.uid,

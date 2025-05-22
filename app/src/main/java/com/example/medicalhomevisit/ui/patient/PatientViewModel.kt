@@ -1,4 +1,3 @@
-// com/example/medicalhomevisit/ui/patient/PatientViewModel.kt
 package com.example.medicalhomevisit.ui.patient
 
 import android.util.Log
@@ -21,6 +20,10 @@ class PatientViewModel(
     private val appointmentRequestRepository: AppointmentRequestRepository,
     private val authRepository: AuthRepository
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "PatientViewModel"
+    }
 
     private val _uiState = MutableStateFlow<PatientUiState>(PatientUiState.Loading)
     val uiState: StateFlow<PatientUiState> = _uiState.asStateFlow()
@@ -54,6 +57,8 @@ class PatientViewModel(
         viewModelScope.launch {
             try {
                 val patientRequests = appointmentRequestRepository.getRequestsForPatient(patientId)
+
+                // Данные уже отсортированы в репозитории
                 _requests.value = patientRequests
 
                 _uiState.value = if (patientRequests.isEmpty()) {
@@ -94,24 +99,27 @@ class PatientViewModel(
         requestType: RequestType,
         symptoms: String,
         preferredDate: Date?,
-        preferredTimeRange: String?,
+        preferredTimeRange: String? = "",
         address: String,
-        additionalNotes: String?
+        additionalNotes: String? = "",
+        patientPhone: String = "Не указано" // Добавляем как параметр функции
     ) {
-        val patientId = _user.value?.id ?: return
+        val currentUser = _user.value ?: return
 
         _uiState.value = PatientUiState.Loading
 
         viewModelScope.launch {
             try {
                 val newRequest = AppointmentRequest(
-                    patientId = patientId,
+                    patientId = currentUser.id,
+                    patientName = currentUser.displayName.ifEmpty { "Не указано" },
+                    patientPhone = patientPhone, // Используем переданный параметр
+                    address = address,
                     requestType = requestType,
                     symptoms = symptoms,
+                    additionalNotes = additionalNotes ?: "",
                     preferredDate = preferredDate,
-                    preferredTimeRange = preferredTimeRange,
-                    address = address,
-                    additionalNotes = additionalNotes,
+                    preferredTimeRange = preferredTimeRange ?: "",
                     status = RequestStatus.NEW
                 )
 
@@ -142,10 +150,6 @@ class PatientViewModel(
         if (_uiState.value !is PatientUiState.Loading) {
             _uiState.value = PatientUiState.Success
         }
-    }
-
-    companion object {
-        private const val TAG = "PatientViewModel"
     }
 }
 

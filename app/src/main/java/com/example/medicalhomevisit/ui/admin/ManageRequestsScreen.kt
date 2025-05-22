@@ -1,5 +1,5 @@
-// com/example/medicalhomevisit/ui/patient/PatientRequestsScreen.kt
-package com.example.medicalhomevisit.ui.patient
+// com/example/medicalhomevisit/ui/admin/ManageRequestsScreen.kt
+package com.example.medicalhomevisit.ui.admin
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,27 +15,32 @@ import androidx.compose.ui.unit.dp
 import com.example.medicalhomevisit.data.model.AppointmentRequest
 import com.example.medicalhomevisit.data.model.RequestStatus
 import com.example.medicalhomevisit.data.model.RequestType
+import com.example.medicalhomevisit.data.model.User
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PatientRequestsScreen(
-    viewModel: PatientViewModel,
-    onCreateRequest: () -> Unit,
-    onRequestDetails: (String) -> Unit,
-    onProfileClick: () -> Unit
+fun ManageRequestsScreen(
+    viewModel: AdminViewModel,
+    onBackClick: () -> Unit,
+    onAssignRequest: (AppointmentRequest) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val requests by viewModel.requests.collectAsState()
+    val activeRequests by viewModel.activeRequests.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Мои заявки") },
+                title = { Text("Управление заявками") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                    }
+                },
                 actions = {
-                    IconButton(onClick = onProfileClick) {
-                        Icon(Icons.Default.Person, contentDescription = "Профиль")
+                    IconButton(onClick = { viewModel.refreshData() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Обновить")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -43,18 +48,6 @@ fun PatientRequestsScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onCreateRequest,
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Создать заявку",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            }
         }
     ) { padding ->
         Box(
@@ -63,12 +56,12 @@ fun PatientRequestsScreen(
                 .padding(padding)
         ) {
             when (uiState) {
-                is PatientUiState.Loading -> {
+                is AdminUiState.Loading -> {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
-                is PatientUiState.Empty -> {
+                is AdminUiState.Empty -> {
                     Column(
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -76,7 +69,7 @@ fun PatientRequestsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(
-                            Icons.Default.Healing,
+                            Icons.Default.CheckCircle,
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
@@ -85,7 +78,7 @@ fun PatientRequestsScreen(
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Text(
-                            text = "У вас пока нет заявок на визит",
+                            text = "Нет активных заявок на визит",
                             style = MaterialTheme.typography.titleMedium,
                             textAlign = TextAlign.Center
                         )
@@ -93,15 +86,15 @@ fun PatientRequestsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = "Нажмите на кнопку «+», чтобы создать новую заявку",
+                            text = "Все заявки обработаны",
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-                is PatientUiState.Success -> {
-                    if (requests.isNotEmpty()) {
+                is AdminUiState.Success, is AdminUiState.RequestAssigned -> {
+                    if (activeRequests.isNotEmpty()) {
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -109,57 +102,15 @@ fun PatientRequestsScreen(
                             contentPadding = PaddingValues(vertical = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Активные заявки
-                            val activeRequests = requests.filter {
-                                it.status == RequestStatus.NEW ||
-                                        it.status == RequestStatus.PENDING ||
-                                        it.status == RequestStatus.ASSIGNED ||
-                                        it.status == RequestStatus.SCHEDULED ||
-                                        it.status == RequestStatus.IN_PROGRESS  // Добавляем эту строку
-                            }
-
-                            if (activeRequests.isNotEmpty()) {
-                                item {
-                                    Text(
-                                        text = "Активные заявки",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        modifier = Modifier.padding(vertical = 8.dp)
-                                    )
-                                }
-
-                                items(activeRequests) { request ->
-                                    RequestCard(
-                                        request = request,
-                                        onClick = { onRequestDetails(request.id) }
-                                    )
-                                }
-                            }
-
-                            // История заявок
-                            val historyRequests = requests.filter {
-                                it.status == RequestStatus.COMPLETED ||
-                                        it.status == RequestStatus.CANCELLED
-                            }
-
-                            if (historyRequests.isNotEmpty()) {
-                                item {
-                                    Text(
-                                        text = "История заявок",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                                    )
-                                }
-
-                                items(historyRequests) { request ->
-                                    RequestCard(
-                                        request = request,
-                                        onClick = { onRequestDetails(request.id) }
-                                    )
-                                }
+                            items(activeRequests) { request ->
+                                AdminRequestCard(
+                                    request = request,
+                                    onClick = { onAssignRequest(request) }
+                                )
                             }
                         }
                     } else {
-                        // Если нет заявок (в случае, если что-то пошло не так с состоянием)
+                        // Если список пуст, но состояние не Empty
                         Column(
                             modifier = Modifier
                                 .align(Alignment.Center)
@@ -171,10 +122,22 @@ fun PatientRequestsScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 textAlign = TextAlign.Center
                             )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Button(onClick = { viewModel.refreshData() }) {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Обновить")
+                            }
                         }
                     }
                 }
-                is PatientUiState.Error -> {
+                is AdminUiState.Error -> {
                     Column(
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -190,17 +153,8 @@ fun PatientRequestsScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        val errorMessage = (uiState as PatientUiState.Error).message
-                        val displayMessage = if (errorMessage.contains("FAILED_PRECONDITION") ||
-                            errorMessage.contains("index")) {
-                            "Ошибка при загрузке данных. Необходимо обновить настройки базы данных. " +
-                                    "Пожалуйста, свяжитесь с разработчиком приложения."
-                        } else {
-                            errorMessage
-                        }
-
                         Text(
-                            text = displayMessage,
+                            text = (uiState as AdminUiState.Error).message,
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.error
@@ -208,12 +162,7 @@ fun PatientRequestsScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Button(
-                            onClick = {
-                                viewModel.resetUiState()
-                                // Перезагрузить данные
-                            }
-                        ) {
+                        Button(onClick = { viewModel.refreshData() }) {
                             Text("Повторить")
                         }
                     }
@@ -226,12 +175,11 @@ fun PatientRequestsScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RequestCard(
+fun AdminRequestCard(
     request: AppointmentRequest,
     onClick: () -> Unit
 ) {
-
-    val dateFormatter = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+    val dateFormatter = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
 
     Card(
         onClick = onClick,
@@ -246,7 +194,7 @@ fun RequestCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                StatusChip(status = request.status)
+                AdminStatusChip(status = request.status)
 
                 Text(
                     text = "Создано: ${dateFormatter.format(request.createdAt)}",
@@ -292,11 +240,8 @@ fun RequestCard(
 
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    val dateText = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
-                        .format(request.preferredDate)
-
                     Text(
-                        text = dateText,
+                        text = "Предпочт. дата: ${dateFormatter.format(request.preferredDate)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -326,11 +271,28 @@ fun RequestCard(
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
+
+            // Кнопка назначения врача
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedButton(
+                onClick = onClick,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Icon(
+                    Icons.Default.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Назначить врача")
+            }
         }
     }
 }
+
 @Composable
-fun StatusChip(status: RequestStatus) {
+fun AdminStatusChip(status: RequestStatus) {
     val (backgroundColor, textColor, text) = when (status) {
         RequestStatus.NEW -> Triple(
             MaterialTheme.colorScheme.primaryContainer,

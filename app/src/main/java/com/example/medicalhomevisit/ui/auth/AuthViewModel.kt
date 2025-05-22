@@ -24,22 +24,45 @@ class AuthViewModel(
     private val _user = MutableStateFlow<User?>(null)
     val user: StateFlow<User?> = _user.asStateFlow()
 
+    // В AuthViewModel.kt
     init {
+        Log.d("AuthViewModel", "Initializing AuthViewModel...")
         viewModelScope.launch {
             authRepository.currentUser.collect { user ->
                 _user.value = user
                 if (user != null) {
                     _uiState.value = AuthUiState.LoggedIn(user)
+                    Log.d("AuthViewModel", "currentUser collected: LoggedIn, User: ${user.id}, Role: ${user.role}")
+                } else {
+                    // Если пользователь null, но мы еще не в NotLoggedIn или Initial,
+                    // возможно, стоит установить NotLoggedIn, чтобы SplashScreen среагировал
+                    if (_uiState.value !is AuthUiState.Initial && _uiState.value !is AuthUiState.NotLoggedIn) {
+                        _uiState.value = AuthUiState.NotLoggedIn
+                        Log.d("AuthViewModel", "currentUser collected: NotLoggedIn (user is null)")
+                    } else if (_uiState.value is AuthUiState.Initial) {
+                        Log.d("AuthViewModel", "currentUser collected: user is null, UI state is Initial")
+                    }
                 }
             }
         }
 
-        // Проверяем, авторизован ли пользователь при запуске
         viewModelScope.launch {
-            if (authRepository.isLoggedIn()) {
+            val isLoggedIn = authRepository.isLoggedIn()
+            Log.d("AuthViewModel", "isLoggedIn check: $isLoggedIn")
+            if (isLoggedIn) {
                 val user = authRepository.getUser()
                 if (user != null) {
                     _uiState.value = AuthUiState.LoggedIn(user)
+                    Log.d("AuthViewModel", "getUser check: LoggedIn, User: ${user.id}, Role: ${user.role}")
+                } else {
+                    _uiState.value = AuthUiState.NotLoggedIn // Если залогинен, но данные пользователя не получены
+                    Log.w("AuthViewModel", "isLoggedIn is true, but getUser() returned null. Setting NotLoggedIn.")
+                }
+            } else {
+                // Если пользователь не залогинен и uiState все еще Initial, можно установить NotLoggedIn
+                if (_uiState.value is AuthUiState.Initial) {
+                    _uiState.value = AuthUiState.NotLoggedIn
+                    Log.d("AuthViewModel", "isLoggedIn is false, setting NotLoggedIn.")
                 }
             }
         }
@@ -182,6 +205,7 @@ sealed class AuthUiState {
     object Initial : AuthUiState()
     object Loading : AuthUiState()
     data class LoggedIn(val user: User) : AuthUiState()
+    object NotLoggedIn : AuthUiState()
     data class Error(val message: String) : AuthUiState()
     object PasswordResetSent : AuthUiState()
 }

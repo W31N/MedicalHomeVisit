@@ -1,32 +1,39 @@
 // com/example/medicalhomevisit/ui/AppNavigation.kt
 package com.example.medicalhomevisit.ui
 
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import com.example.medicalhomevisit.ui.patient.PatientViewModel
-import com.example.medicalhomevisit.ui.patient.PatientViewModelFactory
-import com.example.medicalhomevisit.ui.patient.PatientRequestsScreen
-import com.example.medicalhomevisit.ui.patient.CreateRequestScreen
-import com.example.medicalhomevisit.ui.patient.RequestDetailsScreen
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.medicalhomevisit.data.model.UserRole
+import com.example.medicalhomevisit.ui.admin.AdminDashboardScreen
+import com.example.medicalhomevisit.ui.admin.AdminViewModel
+import com.example.medicalhomevisit.ui.admin.AdminViewModelFactory
+import com.example.medicalhomevisit.ui.admin.AssignRequestScreen
+import com.example.medicalhomevisit.ui.admin.ManageRequestsScreen
+import com.example.medicalhomevisit.ui.admin.RegisterPatientScreen
 import com.example.medicalhomevisit.ui.auth.AuthUiState
 import com.example.medicalhomevisit.ui.auth.AuthViewModel
 import com.example.medicalhomevisit.ui.auth.AuthViewModelFactory
 import com.example.medicalhomevisit.ui.auth.LoginScreen
 import com.example.medicalhomevisit.ui.auth.SignUpScreen
+import com.example.medicalhomevisit.ui.patient.CreateRequestScreen
+import com.example.medicalhomevisit.ui.patient.PatientRequestsScreen
+import com.example.medicalhomevisit.ui.patient.PatientViewModel
+import com.example.medicalhomevisit.ui.patient.PatientViewModelFactory
+import com.example.medicalhomevisit.ui.patient.RequestDetailsScreen
 import com.example.medicalhomevisit.ui.protocol.ProtocolScreen
 import com.example.medicalhomevisit.ui.protocol.ProtocolViewModel
 import com.example.medicalhomevisit.ui.protocol.ProtocolViewModelFactory
@@ -36,7 +43,6 @@ import com.example.medicalhomevisit.ui.visitdetail.VisitDetailViewModelFactory
 import com.example.medicalhomevisit.ui.visitlist.VisitListScreen
 import com.example.medicalhomevisit.ui.visitlist.VisitListViewModel
 import com.example.medicalhomevisit.ui.visitlist.VisitListViewModelFactory
-import android.util.Log
 
 @Composable
 fun AppNavigation() {
@@ -50,8 +56,10 @@ fun AppNavigation() {
             val user = (authState as AuthUiState.LoggedIn).user
             when (user.role) {
                 UserRole.PATIENT -> Screen.PatientHome.route
-                UserRole.MEDICAL_STAFF -> Screen.VisitList.route
-                else -> Screen.VisitList.route
+                UserRole.ADMIN -> Screen.AdminDashboard.route
+                UserRole.MEDICAL_STAFF,
+                UserRole.DISPATCHER -> Screen.VisitList.route
+                else -> Screen.Login.route
             }
         }
         else -> Screen.Login.route
@@ -65,15 +73,83 @@ fun AppNavigation() {
         Screen.PatientHome.route to listOf(UserRole.PATIENT),
         Screen.CreateRequest.route to listOf(UserRole.PATIENT),
         Screen.RequestDetails.route to listOf(UserRole.PATIENT),
-        Screen.VisitList.route to listOf(UserRole.MEDICAL_STAFF, UserRole.ADMIN, UserRole.DISPATCHER),
-        Screen.VisitDetail.route to listOf(UserRole.MEDICAL_STAFF, UserRole.ADMIN, UserRole.DISPATCHER),
-        Screen.Protocol.route to listOf(UserRole.MEDICAL_STAFF, UserRole.ADMIN, UserRole.DISPATCHER)
+        Screen.VisitList.route to listOf(UserRole.MEDICAL_STAFF, UserRole.DISPATCHER), // УБИРАЕМ ADMIN!
+        Screen.VisitDetail.route to listOf(UserRole.MEDICAL_STAFF, UserRole.DISPATCHER), // УБИРАЕМ ADMIN!
+        Screen.Protocol.route to listOf(UserRole.MEDICAL_STAFF, UserRole.DISPATCHER), // УБИРАЕМ ADMIN!
+        Screen.AdminDashboard.route to listOf(UserRole.ADMIN), // Убедитесь что это есть
+        Screen.ManageRequests.route to listOf(UserRole.ADMIN),
+        Screen.AssignRequest.route to listOf(UserRole.ADMIN),
+        Screen.RegisterPatient.route to listOf(UserRole.ADMIN)
     )
 
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = Screen.SplashScreen.route
     ) {
+
+        composable(Screen.SplashScreen.route) {
+            SplashScreen()
+            Log.d("AppNavigation", "SplashScreen: Current authState: $authState") // <--- ЛОГ
+
+            LaunchedEffect(authState) {
+                Log.d("AppNavigation", "SplashScreen: LaunchedEffect triggered with authState: $authState")
+                val currentAuthState = authState // Сохраняем в локальную переменную
+
+                when (currentAuthState) {
+                    is AuthUiState.LoggedIn -> {
+                        val user = currentAuthState.user
+                        Log.d("AppNavigation", "SplashScreen: Navigating based on LoggedIn state. User role: ${user.role}")
+
+                        when (user.role) {
+                            UserRole.PATIENT -> {
+                                navController.navigate(Screen.PatientHome.route) {
+                                    popUpTo(Screen.SplashScreen.route) { inclusive = true }
+                                }
+                            }
+                            UserRole.ADMIN -> {
+                                navController.navigate(Screen.AdminDashboard.route) {
+                                    popUpTo(Screen.SplashScreen.route) { inclusive = true }
+                                }
+                            }
+                            UserRole.MEDICAL_STAFF,
+                            UserRole.DISPATCHER -> {
+                                navController.navigate(Screen.VisitList.route) {
+                                    popUpTo(Screen.SplashScreen.route) { inclusive = true }
+                                }
+                            }
+                            else -> {
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.SplashScreen.route) { inclusive = true }
+                                }
+                            }
+                        }
+                    }
+                    is AuthUiState.NotLoggedIn -> {
+                        Log.d("AppNavigation", "SplashScreen: AuthState is NotLoggedIn, navigating to Login.")
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.SplashScreen.route) { inclusive = true }
+                        }
+                    }
+                    is AuthUiState.Initial, is AuthUiState.Loading -> {
+                        Log.d("AppNavigation", "SplashScreen: AuthState is Initial or Loading, waiting...")
+                        // Ждем изменения состояния
+                    }
+                    is AuthUiState.Error -> {
+                        Log.e("AppNavigation", "SplashScreen: AuthState is Error: ${currentAuthState.message}. Navigating to Login.")
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.SplashScreen.route) { inclusive = true }
+                        }
+                    }
+                    else -> {
+                        Log.d("AppNavigation", "SplashScreen: AuthState is unexpected ($currentAuthState), navigating to Login as fallback.")
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.SplashScreen.route) { inclusive = true }
+                        }
+                    }
+                }
+            }
+        }
+
         composable(Screen.Login.route) {
             LoginScreen(
                 viewModel = authViewModel,
@@ -83,8 +159,10 @@ fun AppNavigation() {
                         UserRole.PATIENT -> navController.navigate(Screen.PatientHome.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
+                        UserRole.ADMIN -> navController.navigate(Screen.AdminDashboard.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
                         UserRole.MEDICAL_STAFF,
-                        UserRole.ADMIN,
                         UserRole.DISPATCHER -> navController.navigate(Screen.VisitList.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
@@ -107,8 +185,10 @@ fun AppNavigation() {
                         UserRole.PATIENT -> navController.navigate(Screen.PatientHome.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
+                        UserRole.ADMIN -> navController.navigate(Screen.AdminDashboard.route) { // ← ИСПРАВЛЯЕМ!
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
                         UserRole.MEDICAL_STAFF,
-                        UserRole.ADMIN,
                         UserRole.DISPATCHER -> navController.navigate(Screen.VisitList.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
@@ -296,6 +376,106 @@ fun AppNavigation() {
                 }
             }
         }
+        composable(Screen.AdminDashboard.route) {
+            AuthProtectedScreen(
+                requiredRoles = listOf(UserRole.ADMIN),
+                authState = authState,
+                navController = navController
+            ) {
+                val viewModel = remember { AdminViewModelFactory().create(AdminViewModel::class.java) }
+                AdminDashboardScreen(
+                    viewModel = viewModel,
+                    onNavigateToManageRequests = { navController.navigate(Screen.ManageRequests.route) },
+                    onNavigateToRegisterPatient = { navController.navigate(Screen.RegisterPatient.route) },
+                    onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
+                )
+            }
+        }
+
+// Экран управления заявками
+        composable(Screen.ManageRequests.route) {
+            AuthProtectedScreen(
+                requiredRoles = listOf(UserRole.ADMIN),
+                authState = authState,
+                navController = navController
+            ) {
+                val viewModel = remember { AdminViewModelFactory().create(AdminViewModel::class.java) }
+                ManageRequestsScreen(
+                    viewModel = viewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onAssignRequest = { request ->
+                        navController.navigate(Screen.AssignRequest.createRoute(request.id))
+                    }
+                )
+            }
+        }
+
+// Экран назначения заявки
+        composable(
+            route = Screen.AssignRequest.route,
+            arguments = listOf(
+                navArgument(Screen.AssignRequest.ARG_REQUEST_ID) {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            AuthProtectedScreen(
+                requiredRoles = listOf(UserRole.ADMIN),
+                authState = authState,
+                navController = navController
+            ) {
+                val requestId = backStackEntry.arguments?.getString(Screen.AssignRequest.ARG_REQUEST_ID)
+                    ?: throw IllegalArgumentException("Не указан ID заявки")
+
+                val viewModel = remember { AdminViewModelFactory().create(AdminViewModel::class.java) }
+                val activeRequests by viewModel.activeRequests.collectAsState()
+
+                // Находим заявку по ID
+                val request = activeRequests.find { it.id == requestId }
+
+                if (request != null) {
+                    AssignRequestScreen(
+                        viewModel = viewModel,
+                        request = request,
+                        onBackClick = { navController.popBackStack() },
+                        onRequestAssigned = { navController.popBackStack() }
+                    )
+                } else {
+                    // Если заявка не найдена, показываем индикатор загрузки
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    }
+
+                    // Загружаем активные заявки
+                    LaunchedEffect(Unit) {
+                        viewModel.refreshData()
+                    }
+                }
+            }
+        }
+
+// Экран регистрации пациента
+        composable(Screen.RegisterPatient.route) {
+            AuthProtectedScreen(
+                requiredRoles = listOf(UserRole.ADMIN),
+                authState = authState,
+                navController = navController
+            ) {
+                val viewModel = remember { AdminViewModelFactory().create(AdminViewModel::class.java) }
+                RegisterPatientScreen(
+                    viewModel = viewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onPatientRegistered = { navController.popBackStack() }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SplashScreen() {
+    Box(modifier = Modifier.fillMaxSize()) {
+        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
     }
 }
 
@@ -335,8 +515,10 @@ fun AuthProtectedScreen(
                 UserRole.PATIENT -> navController.navigate(Screen.PatientHome.route) {
                     popUpTo(navController.graph.id) { inclusive = true }
                 }
+                UserRole.ADMIN -> navController.navigate(Screen.AdminDashboard.route) { // ← ИСПРАВЛЯЕМ!
+                    popUpTo(navController.graph.id) { inclusive = true }
+                }
                 UserRole.MEDICAL_STAFF,
-                UserRole.ADMIN,
                 UserRole.DISPATCHER -> navController.navigate(Screen.VisitList.route) {
                     popUpTo(navController.graph.id) { inclusive = true }
                 }
@@ -351,6 +533,7 @@ fun AuthProtectedScreen(
 }
 
 sealed class Screen(val route: String) {
+    object SplashScreen : Screen("splash_screen")
     object Login : Screen("login")
     object SignUp : Screen("signup")
     object VisitList : Screen("visitList")
@@ -381,4 +564,14 @@ sealed class Screen(val route: String) {
             return "protocol/$visitId"
         }
     }
+    object AdminDashboard : Screen("adminDashboard")
+    object ManageRequests : Screen("manageRequests")
+    object AssignRequest : Screen("assignRequest/{requestId}") {
+        const val ARG_REQUEST_ID = "requestId"
+
+        fun createRoute(requestId: String): String {
+            return "assignRequest/$requestId"
+        }
+    }
+    object RegisterPatient : Screen("registerPatient")
 }

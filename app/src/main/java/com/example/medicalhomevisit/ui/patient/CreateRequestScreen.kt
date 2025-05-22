@@ -1,9 +1,10 @@
 // com/example/medicalhomevisit/ui/patient/CreateRequestScreen.kt
 package com.example.medicalhomevisit.ui.patient
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -12,12 +13,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.medicalhomevisit.data.model.RequestType
 import java.text.SimpleDateFormat
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.rememberDatePickerState
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,14 +34,33 @@ fun CreateRequestScreen(
     var requestType by remember { mutableStateOf(RequestType.REGULAR) }
     var symptoms by remember { mutableStateOf("") }
     var selectedDate by remember { mutableStateOf<Date?>(null) }
-    var preferredTimeRange by remember { mutableStateOf<String?>(null) }
+    var selectedHour by remember { mutableStateOf(9) } // 9 часов утра по умолчанию
+    var selectedMinute by remember { mutableStateOf(0) }
     var address by remember { mutableStateOf("") }
     var additionalNotes by remember { mutableStateOf("") }
 
-    var showTimeRangeDialog by remember { mutableStateOf(false) }
-    var showDatePicker by remember { mutableStateOf(false) }
+    // Состояние для отображения сообщения об ошибке выбора времени
+    var showTimeError by remember { mutableStateOf(false) }
+    var timeErrorMessage by remember { mutableStateOf("") }
 
+    val context = LocalContext.current
     val dateFormatter = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
+    val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+    // Рабочее время в часах (9:00 - 18:00)
+    val workHoursStart = 9
+    val workHoursEnd = 18
+
+    // Создаем полную дату с временем
+    val fullDateTime: Date? = remember(selectedDate, selectedHour, selectedMinute) {
+        selectedDate?.let { date ->
+            val calendar = Calendar.getInstance()
+            calendar.time = date
+            calendar.set(Calendar.HOUR_OF_DAY, selectedHour)
+            calendar.set(Calendar.MINUTE, selectedMinute)
+            calendar.time
+        }
+    }
 
     // Автоматически заполняем адрес пользователя, если он доступен
     LaunchedEffect(user) {
@@ -96,14 +116,14 @@ fun CreateRequestScreen(
                 ) {
                     RequestTypeButton(
                         type = RequestType.REGULAR,
-                        label = "Плановая",  // Изменено на "Плановая"
+                        label = "Плановая",
                         selected = requestType == RequestType.REGULAR,
                         onClick = { requestType = RequestType.REGULAR }
                     )
 
                     RequestTypeButton(
                         type = RequestType.EMERGENCY,
-                        label = "Неотложная",  // Изменено на "Неотложная"
+                        label = "Неотложная",
                         selected = requestType == RequestType.EMERGENCY,
                         onClick = { requestType = RequestType.EMERGENCY }
                     )
@@ -164,7 +184,32 @@ fun CreateRequestScreen(
 
                                 Spacer(modifier = Modifier.weight(1f))
 
-                                TextButton(onClick = { showDatePicker = true }) {
+                                TextButton(onClick = {
+                                    // Показываем DatePickerDialog
+                                    val calendar = Calendar.getInstance()
+                                    calendar.time = selectedDate!!
+                                    DatePickerDialog(
+                                        context,
+                                        { _, year, month, dayOfMonth ->
+                                            val newCalendar = Calendar.getInstance()
+                                            newCalendar.set(year, month, dayOfMonth)
+                                            // Сохраняем только дату, сохраняя текущее выбранное время
+                                            selectedDate = newCalendar.time
+                                        },
+                                        calendar.get(Calendar.YEAR),
+                                        calendar.get(Calendar.MONTH),
+                                        calendar.get(Calendar.DAY_OF_MONTH)
+                                    ).apply {
+                                        val tomorrow = Calendar.getInstance().apply {
+                                            add(Calendar.DAY_OF_YEAR, 1)
+                                            set(Calendar.HOUR_OF_DAY, 0)
+                                            set(Calendar.MINUTE, 0)
+                                            set(Calendar.SECOND, 0)
+                                        }
+                                        datePicker.minDate = tomorrow.timeInMillis
+                                        show()
+                                    }
+                                }) {
                                     Text("Изменить")
                                 }
                             } else {
@@ -172,7 +217,33 @@ fun CreateRequestScreen(
 
                                 Spacer(modifier = Modifier.weight(1f))
 
-                                Button(onClick = { showDatePicker = true }) {
+                                Button(onClick = {
+                                    // Показываем DatePickerDialog
+                                    val calendar = Calendar.getInstance()
+                                    DatePickerDialog(
+                                        context,
+                                        { _, year, month, dayOfMonth ->
+                                            val newCalendar = Calendar.getInstance()
+                                            newCalendar.set(year, month, dayOfMonth)
+                                            selectedDate = newCalendar.time
+                                            // По умолчанию устанавливаем 9:00 утра
+                                            selectedHour = workHoursStart
+                                            selectedMinute = 0
+                                        },
+                                        calendar.get(Calendar.YEAR),
+                                        calendar.get(Calendar.MONTH),
+                                        calendar.get(Calendar.DAY_OF_MONTH)
+                                    ).apply {
+                                        val tomorrow = Calendar.getInstance().apply {
+                                            add(Calendar.DAY_OF_YEAR, 1)
+                                            set(Calendar.HOUR_OF_DAY, 0)
+                                            set(Calendar.MINUTE, 0)
+                                            set(Calendar.SECOND, 0)
+                                        }
+                                        datePicker.minDate = tomorrow.timeInMillis
+                                        show()
+                                    }
+                                }) {
                                     Text("Выбрать")
                                 }
                             }
@@ -191,25 +262,66 @@ fun CreateRequestScreen(
                                 modifier = Modifier.padding(end = 8.dp)
                             )
 
-                            if (preferredTimeRange != null) {
-                                Text(
-                                    text = preferredTimeRange ?: "",
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
+                            if (selectedDate != null) {
+                                Column {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = timeFormatter.format(fullDateTime!!),
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
 
-                                Spacer(modifier = Modifier.weight(1f))
+                                        Spacer(modifier = Modifier.weight(1f))
 
-                                TextButton(onClick = { showTimeRangeDialog = true }) {
-                                    Text("Изменить")
+                                        Button(onClick = {
+                                            // Показываем TimePickerDialog
+                                            TimePickerDialog(
+                                                context,
+                                                { _, hourOfDay, minute ->
+                                                    // Проверяем, что выбранное время находится в рабочем диапазоне
+                                                    if (hourOfDay < workHoursStart || hourOfDay >= workHoursEnd) {
+                                                        showTimeError = true
+                                                        timeErrorMessage = "Пожалуйста, выберите время с $workHoursStart:00 до $workHoursEnd:00"
+                                                    } else {
+                                                        selectedHour = hourOfDay
+                                                        selectedMinute = minute
+                                                        showTimeError = false
+                                                    }
+                                                },
+                                                selectedHour,
+                                                selectedMinute,
+                                                true // 24-часовой формат
+                                            ).show()
+                                        }) {
+                                            Text("Выбрать время")
+                                        }
+                                    }
+
+                                    // Сообщение об ошибке выбора времени
+                                    if (showTimeError) {
+                                        Text(
+                                            text = timeErrorMessage,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    } else {
+                                        // Информационное сообщение о рабочих часах
+                                        Text(
+                                            text = "Рабочие часы: с $workHoursStart:00 до $workHoursEnd:00",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    }
                                 }
                             } else {
-                                Text("Выберите предпочтительное время")
-
-                                Spacer(modifier = Modifier.weight(1f))
-
-                                Button(onClick = { showTimeRangeDialog = true }) {
-                                    Text("Выбрать")
-                                }
+                                Text(
+                                    text = "Сначала выберите дату",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
@@ -248,8 +360,8 @@ fun CreateRequestScreen(
                     viewModel.createNewRequest(
                         requestType = requestType,
                         symptoms = symptoms,
-                        preferredDate = selectedDate,
-                        preferredTimeRange = preferredTimeRange,
+                        preferredDate = fullDateTime, // Используем комбинированную дату с временем
+                        preferredTimeRange = null, // Теперь не используем диапазоны времени
                         address = address,
                         additionalNotes = additionalNotes.ifBlank { null }
                     )
@@ -259,6 +371,7 @@ fun CreateRequestScreen(
                     .padding(top = 8.dp),
                 enabled = symptoms.isNotBlank() && address.isNotBlank() &&
                         (requestType == RequestType.EMERGENCY || selectedDate != null) &&
+                        !showTimeError && // Проверяем отсутствие ошибки времени
                         uiState !is PatientUiState.Loading
             ) {
                 if (uiState is PatientUiState.Loading) {
@@ -271,102 +384,6 @@ fun CreateRequestScreen(
                 }
             }
         }
-    }
-
-    // Диалог выбора даты
-    // Диалог выбора даты
-    if (showDatePicker) {
-        val calendar = Calendar.getInstance()
-        // Устанавливаем минимальную дату (завтра)
-        val tomorrow = Calendar.getInstance().apply {
-            add(Calendar.DAY_OF_YEAR, 1)
-        }.timeInMillis
-
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        selectedDate = Date(calendar.timeInMillis)
-                        showDatePicker = false
-                    }
-                ) {
-                    Text("OK")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showDatePicker = false }
-                ) {
-                    Text("Отмена")
-                }
-            }
-        ) {
-            // Используем более простую версию DatePicker
-            androidx.compose.material3.DatePicker(
-                state = rememberDatePickerState(
-                    initialSelectedDateMillis = selectedDate?.time ?: tomorrow
-                )
-            )
-        }
-    }
-
-    // Диалог выбора времени
-    if (showTimeRangeDialog) {
-        AlertDialog(
-            onDismissRequest = { showTimeRangeDialog = false },
-            title = { Text("Выберите время") },
-            text = {
-                Column {
-                    val timeRanges = listOf(
-                        "Утро (8:00 - 12:00)",
-                        "День (12:00 - 16:00)",
-                        "Вечер (16:00 - 20:00)",
-                        "Любое время"
-                    )
-
-                    timeRanges.forEach { timeRange ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                                .selectable(
-                                    selected = preferredTimeRange == timeRange,
-                                    onClick = { preferredTimeRange = timeRange }
-                                ),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = preferredTimeRange == timeRange,
-                                onClick = { preferredTimeRange = timeRange }
-                            )
-                            Text(
-                                text = timeRange,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(start = 8.dp)
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { showTimeRangeDialog = false }
-                ) {
-                    Text("Готово")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        preferredTimeRange = null
-                        showTimeRangeDialog = false
-                    }
-                ) {
-                    Text("Отмена")
-                }
-            }
-        )
     }
 }
 
@@ -397,7 +414,7 @@ fun RowScope.RequestTypeButton(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,  // Ограничиваем текст одной строкой
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

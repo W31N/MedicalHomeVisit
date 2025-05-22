@@ -8,9 +8,9 @@ import java.util.Date
 data class Patient(
     @PrimaryKey val id: String,
     val fullName: String,
-    val dateOfBirth: Date,
-    val age: Int,
-    val gender: Gender,
+    val dateOfBirth: Date? = null, // Сделали обнуляемым
+    val age: Int? = null,          // Сделали обнуляемым
+    val gender: Gender = Gender.UNKNOWN, // По умолчанию UNKNOWN
     val address: String,
     val phoneNumber: String,
     val policyNumber: String,
@@ -19,5 +19,7 @@ data class Patient(
 )
 
 enum class Gender {
-    MALE, FEMALE
+    MALE,
+    FEMALE,
+    UNKNOWN
 }

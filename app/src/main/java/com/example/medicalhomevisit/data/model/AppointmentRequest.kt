@@ -1,38 +1,52 @@
-// com/example/medicalhomevisit/data/model/AppointmentRequest.kt
 package com.example.medicalhomevisit.data.model
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
 import java.util.Date
 
-@Entity(tableName = "appointment_requests")
 data class AppointmentRequest(
-    @PrimaryKey val id: String = "",
+    val id: String = "",
     val patientId: String,
+    val patientName: String,
+    val patientPhone: String,
+    val address: String,
     val requestType: RequestType,
     val symptoms: String,
-    val preferredDate: Date?, // Предпочтительная дата визита (может быть null для срочных)
-    val preferredTimeRange: String?, // Например, "Утро", "После обеда" и т.д.
-    val address: String, // Адрес для визита
-    val additionalNotes: String?, // Дополнительная информация от пациента
+    val additionalNotes: String = "",
+    val preferredDate: Date? = null,
+    val preferredTimeRange: String = "", // Добавляем это поле
     val status: RequestStatus = RequestStatus.NEW,
-    val assignedStaffId: String? = null, // ID назначенного медработника
-    val responseMessage: String? = null, // Сообщение от медучреждения при изменении статуса
+    val assignedStaffId: String? = null,
+    val assignedStaffName: String? = null,
+    val assignedBy: String? = null,
+    val assignedAt: Date? = null,
+    val assignmentNote: String? = null,
+    val responseMessage: String = "", // Добавляем это поле
     val createdAt: Date = Date(),
-    val updatedAt: Date = Date()
+    val updatedAt: Date = Date(),
+
+    // Добавляем поле urgencyLevel
+    val urgencyLevel: UrgencyLevel? = null,
+    val priority: Int = 0 // 0 - обычный, 1 - высокий, 2 - критический
 )
 
 enum class RequestType {
-    EMERGENCY, // Неотложный визит
-    REGULAR,   // Плановый визит
-    CONSULTATION // Консультация
+    EMERGENCY,
+    REGULAR,
+    CONSULTATION
 }
 
 enum class RequestStatus {
-    NEW,       // Новая заявка
-    PENDING,   // На рассмотрении
-    ASSIGNED,  // Назначен медработник
-    SCHEDULED, // Запланирован визит (создан Visit)
-    COMPLETED, // Выполнено
-    CANCELLED  // Отменено
+    NEW,
+    PENDING,
+    ASSIGNED,
+    SCHEDULED,
+    IN_PROGRESS,
+    COMPLETED,
+    CANCELLED
+}
+
+enum class UrgencyLevel {
+    LOW,      // Низкая
+    NORMAL,   // Обычная
+    HIGH,     // Высокая
+    CRITICAL  // Критическая
 }

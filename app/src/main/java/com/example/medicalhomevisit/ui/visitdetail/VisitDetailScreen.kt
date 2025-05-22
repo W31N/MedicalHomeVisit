@@ -35,6 +35,8 @@ fun VisitDetailScreen(
 ) {
     val visitState by viewModel.uiState.collectAsState()
     val patientState by viewModel.patientState.collectAsState()
+    // val originalRequestState by viewModel.originalRequest.collectAsState() // Если нужно отображать
+    // val isOffline by viewModel.isOffline.collectAsState() // Если нужно отображать статус
 
     val context = LocalContext.current
 
@@ -67,8 +69,8 @@ fun VisitDetailScreen(
                 }
                 is VisitDetailUiState.Success -> {
                     val visit = vState.visit
-                    val patient = when (patientState) {
-                        is PatientState.Success -> (patientState as PatientState.Success).patient
+                    val patient = when (val pState = patientState) { // Изменил на val pState
+                        is PatientState.Success -> pState.patient
                         else -> null
                     }
 
@@ -77,31 +79,36 @@ fun VisitDetailScreen(
                         patient = patient,
                         onCallPatient = {
                             patient?.phoneNumber?.let { phone ->
-                                val intent = Intent(Intent.ACTION_DIAL).apply {
-                                    data = Uri.parse("tel:$phone")
+                                if (phone != "Телефон не указан" && phone.isNotBlank()) {
+                                    val intent = Intent(Intent.ACTION_DIAL).apply {
+                                        data = Uri.parse("tel:$phone")
+                                    }
+                                    context.startActivity(intent)
                                 }
-                                context.startActivity(intent)
                             }
                         },
                         onOpenMap = {
-                            val mapIntent = Intent(Intent.ACTION_VIEW).apply {
-                                data = Uri.parse("geo:0,0?q=${Uri.encode(visit.address)}")
-                            }
-                            if (mapIntent.resolveActivity(context.packageManager) != null) {
-                                context.startActivity(mapIntent)
-                            } else {
-                                // Fallback to browser if maps app not available
-                                val webIntent = Intent(Intent.ACTION_VIEW).apply {
-                                    data = Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(visit.address)}")
+                            if (visit.address != "Адрес не указан" && visit.address.isNotBlank()) {
+                                val mapIntent = Intent(Intent.ACTION_VIEW).apply {
+                                    data = Uri.parse("geo:0,0?q=${Uri.encode(visit.address)}")
                                 }
-                                context.startActivity(webIntent)
+                                if (mapIntent.resolveActivity(context.packageManager) != null) {
+                                    context.startActivity(mapIntent)
+                                } else {
+                                    val webIntent = Intent(Intent.ACTION_VIEW).apply {
+                                        data = Uri.parse("https://maps.google.com/?q=${Uri.encode(visit.address)}")
+                                    }
+                                    context.startActivity(webIntent)
+                                }
                             }
                         },
                         onStatusChange = { newStatus ->
                             viewModel.updateVisitStatus(newStatus)
                         },
                         onCreateProtocol = {
-                            onNavigateToProtocol(visit.id)
+                            if (viewModel.canCreateProtocol()) { // Добавим проверку
+                                onNavigateToProtocol(visit.id)
+                            }
                         }
                     )
                 }
@@ -113,7 +120,7 @@ fun VisitDetailScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Ошибка загрузки данных",
+                            text = "Ошибка загрузки данных визита",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -127,6 +134,27 @@ fun VisitDetailScreen(
                             Text("Вернуться к списку визитов")
                         }
                     }
+                }
+            }
+
+            // Отображение ошибки загрузки пациента, если она есть и визит загружен
+            if (visitState is VisitDetailUiState.Success && patientState is PatientState.Error) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.Center) // Или другое подходящее место
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Ошибка загрузки данных пациента:",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text = (patientState as PatientState.Error).message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }
@@ -222,11 +250,11 @@ fun VisitDetailContent(
                                 onClick = { onCreateProtocol() },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Просмотреть протокол")
+                                Text("Просмотреть/Изменить протокол") // Изменено
                             }
                         }
                         VisitStatus.CANCELLED -> {
-                            // Нет действий для отменённого визита
+                            Text("Визит отменен", style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
@@ -251,19 +279,23 @@ fun VisitDetailContent(
                     InfoRow(title = "ФИО:", value = patient.fullName)
                     InfoRow(
                         title = "Дата рождения:",
-                        value = "${dateFormatter.format(patient.dateOfBirth)} (${patient.age} лет)"
+                        // Проверяем, что dateOfBirth не null перед форматированием
+                        value = patient.dateOfBirth?.let { "${dateFormatter.format(it)} (${patient.age ?: "возраст не указан"})" } ?: "Не указана"
                     )
                     InfoRow(
                         title = "Пол:",
                         value = when (patient.gender) {
                             Gender.MALE -> "Мужской"
                             Gender.FEMALE -> "Женский"
+                            Gender.UNKNOWN -> "Не указан" // Обработка UNKNOWN
                         }
                     )
-                    InfoRow(title = "Номер полиса:", value = patient.policyNumber)
+                    InfoRow(title = "Номер полиса:", value = patient.policyNumber.ifBlank { "Не указан" })
 
                     if (!patient.allergies.isNullOrEmpty()) {
                         InfoRow(title = "Аллергии:", value = patient.allergies.joinToString(", "))
+                    } else {
+                        InfoRow(title = "Аллергии:", value = "Нет данных")
                     }
 
                     if (!patient.chronicConditions.isNullOrEmpty()) {
@@ -271,24 +303,26 @@ fun VisitDetailContent(
                             title = "Хронические заболевания:",
                             value = patient.chronicConditions.joinToString(", ")
                         )
+                    } else {
+                        InfoRow(title = "Хронические заболевания:", value = "Нет данных")
                     }
+
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     OutlinedButton(
                         onClick = onCallPatient,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = patient.phoneNumber != "Телефон не указан" && patient.phoneNumber.isNotBlank()
                     ) {
                         Icon(Icons.Default.Call, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Позвонить пациенту")
+                        Text("Позвонить пациенту (${patient.phoneNumber})")
                     }
                 } else {
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(16.dp)
-                    )
+                    // Это состояние обычно обрабатывается в VisitDetailScreen через PatientState.Loading/Error
+                    // Но на всякий случай оставим здесь заглушку или сообщение
+                    Text("Данные пациента загружаются или отсутствуют...")
                 }
             }
         }
@@ -302,33 +336,37 @@ fun VisitDetailContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Информация о визите",
+                    text = "Детали вызова", // Изменено для ясности
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
 
-                InfoRow(title = "Причина визита:", value = visit.reasonForVisit)
-                InfoRow(title = "Адрес:", value = visit.address)
+                InfoRow(title = "Причина визита:", value = visit.reasonForVisit.ifBlank { "Не указана" })
+                InfoRow(title = "Адрес:", value = visit.address.ifBlank { "Не указан" })
 
-                if (visit.notes != null) {
-                    InfoRow(title = "Примечания:", value = visit.notes)
+                // Отображаем visit.notes только если они не пустые
+                if (visit.notes.isNotBlank()) {
+                    InfoRow(title = "Примечания к визиту:", value = visit.notes)
                 }
+
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedButton(
                     onClick = onOpenMap,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = visit.address != "Адрес не указан" && visit.address.isNotBlank()
                 ) {
                     Icon(Icons.Default.LocationOn, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Открыть на карте")
+                    Text("Открыть адрес на карте")
                 }
             }
         }
     }
 }
 
+// InfoRow остается без изменений
 @Composable
 fun InfoRow(title: String, value: String) {
     Row(
@@ -340,7 +378,7 @@ fun InfoRow(title: String, value: String) {
             text = title,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.width(180.dp)
+            modifier = Modifier.width(180.dp) // Можно настроить ширину
         )
         Text(
             text = value,

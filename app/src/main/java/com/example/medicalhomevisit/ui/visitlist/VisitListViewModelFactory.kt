@@ -2,6 +2,7 @@ package com.example.medicalhomevisit.ui.visitlist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.example.medicalhomevisit.data.repository.FirebaseAuthRepository
 import com.example.medicalhomevisit.data.repository.FirebaseVisitRepository
 
 class VisitListViewModelFactory : ViewModelProvider.Factory {
@@ -9,7 +10,8 @@ class VisitListViewModelFactory : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(VisitListViewModel::class.java)) {
             return VisitListViewModel(
-                visitRepository = FirebaseVisitRepository()
+                visitRepository = FirebaseVisitRepository(),
+                authRepository = FirebaseAuthRepository() // Добавляем AuthRepository
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
