@@ -8,7 +8,7 @@ interface AppointmentRequestRepository {
     suspend fun createRequest(request: AppointmentRequest): AppointmentRequest
     suspend fun getRequestById(requestId: String): AppointmentRequest
     suspend fun getPendingRequests(): List<AppointmentRequest>
-    suspend fun getAllActiveRequests(): List<AppointmentRequest> // Добавляем этот метод
+    suspend fun getAllActiveRequests(): List<AppointmentRequest>
     suspend fun assignRequestToStaff(
         requestId: String,
         staffId: String,
@@ -28,8 +28,6 @@ interface AppointmentRequestRepository {
     suspend fun cancelRequest(requestId: String, reason: String): AppointmentRequest
     fun observeRequests(): Flow<List<AppointmentRequest>>
     fun observeRequestsForPatient(patientId: String): Flow<List<AppointmentRequest>>
-
-    // Добавляем недостающий метод синхронизации
     suspend fun syncRequests(): Result<List<AppointmentRequest>>
     suspend fun cacheRequests(requests: List<AppointmentRequest>)
     suspend fun getCachedRequests(): List<AppointmentRequest>

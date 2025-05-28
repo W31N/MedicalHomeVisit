@@ -25,7 +25,6 @@ class FirebaseVisitRepository : VisitRepository {
     }
 
     init {
-        // Слушаем изменения в коллекции визитов
         visitsCollection.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 Log.e(TAG, "Error listening for visits", error)
@@ -56,7 +55,7 @@ class FirebaseVisitRepository : VisitRepository {
                 },
                 address = data["address"] as? String ?: "",
                 reasonForVisit = data["reasonForVisit"] as? String ?: "",
-                notes = data["notes"] as? String ?: "", // Теперь корректно обрабатываем null
+                notes = data["notes"] as? String ?: "",
                 assignedStaffId = data["assignedStaffId"] as? String,
                 assignedStaffName = data["assignedStaffName"] as? String,
                 actualStartTime = (data["actualStartTime"] as? Timestamp)?.toDate(),
@@ -80,13 +79,12 @@ class FirebaseVisitRepository : VisitRepository {
             )
             visitsCollection.document(visitId).update(updates).await()
 
-            // Обновляем локальный кэш
             val cachedVisits = getCachedVisits().toMutableList()
             val index = cachedVisits.indexOfFirst { it.id == visitId }
             if (index != -1) {
                 val updatedVisit = cachedVisits[index].copy(notes = notes)
                 cachedVisits[index] = updatedVisit
-                // Обновляем flow
+
                 _visitsFlow.value = cachedVisits
             }
         } catch (e: Exception) {
@@ -103,7 +101,6 @@ class FirebaseVisitRepository : VisitRepository {
             )
             visitsCollection.document(visitId).update(updates).await()
 
-            // Обновляем локальный кэш
             val cachedVisits = getCachedVisits().toMutableList()
             val index = cachedVisits.indexOfFirst { it.id == visitId }
             if (index != -1) {
@@ -137,7 +134,6 @@ class FirebaseVisitRepository : VisitRepository {
 
             visitsCollection.document(visit.id).update(visitData).await()
 
-            // Обновляем кэш
             val cachedVisits = getCachedVisits().toMutableList()
             val index = cachedVisits.indexOfFirst { it.id == visit.id }
             if (index != -1) {
@@ -316,8 +312,6 @@ class FirebaseVisitRepository : VisitRepository {
     }
 
     override suspend fun cacheVisits(visits: List<Visit>) {
-        // В Firebase Firestore кэширование происходит автоматически
-        // Но мы можем обновить наш локальный flow для согласованности
         _visitsFlow.value = visits
         Log.d(TAG, "Visits cached locally: ${visits.size} items")
     }

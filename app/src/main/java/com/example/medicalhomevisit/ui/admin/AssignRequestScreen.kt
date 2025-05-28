@@ -1,9 +1,6 @@
-    // com/example/medicalhomevisit/ui/admin/AssignRequestScreen.kt
     package com.example.medicalhomevisit.ui.admin
 
     import androidx.compose.foundation.layout.*
-    import androidx.compose.foundation.lazy.LazyColumn
-    import androidx.compose.foundation.lazy.items
     import androidx.compose.foundation.rememberScrollState
     import androidx.compose.foundation.selection.selectable
     import androidx.compose.foundation.text.KeyboardOptions
@@ -39,14 +36,12 @@
 
         val dateFormatter = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
 
-        // Наблюдаем за состоянием UI для назначения заявки
         LaunchedEffect(uiState) {
             if (uiState is AdminUiState.RequestAssigned) {
                 onRequestAssigned()
             }
         }
 
-        // Загружаем медработников при запуске экрана
         LaunchedEffect(Unit) {
             viewModel.refreshData()
         }
@@ -75,7 +70,6 @@
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Информация о заявке
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -129,7 +123,6 @@
                     }
                 }
 
-                // Выбор медицинского работника
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -204,7 +197,6 @@
                     }
                 }
 
-                // Примечание к назначению
                 OutlinedTextField(
                     value = assignmentNote,
                     onValueChange = { assignmentNote = it },
@@ -216,7 +208,6 @@
                     minLines = 2
                 )
 
-                // Кнопка назначения
                 Button(
                     onClick = {
                         if (selectedStaff != null) {

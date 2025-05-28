@@ -1,11 +1,9 @@
-// com/example/medicalhomevisit/data/repository/FirebaseAdminRepository.kt
 package com.example.medicalhomevisit.data.repository
 
 import android.util.Log
 import com.example.medicalhomevisit.data.model.User
 import com.example.medicalhomevisit.data.model.UserRole
 import com.example.medicalhomevisit.domain.repository.AdminRepository
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ktx.firestore
@@ -50,7 +48,6 @@ class FirebaseAdminRepository : AdminRepository {
 
     override suspend fun getActiveStaff(): List<User> {
         try {
-            // Упрощенный запрос - просто получаем всех медработников
             val snapshot = usersCollection
                 .whereEqualTo("role", UserRole.MEDICAL_STAFF.name)
                 .get()
@@ -92,11 +89,9 @@ class FirebaseAdminRepository : AdminRepository {
         additionalInfo: String?
     ): User {
         try {
-            // 1. Создаем пользователя в Firebase Auth
             val authResult = auth.createUserWithEmailAndPassword(email, password).await()
             val firebaseUser = authResult.user ?: throw Exception("Failed to create user")
 
-            // 2. Добавляем данные в коллекцию users
             val userData = hashMapOf(
                 "email" to email,
                 "displayName" to displayName,
@@ -106,7 +101,6 @@ class FirebaseAdminRepository : AdminRepository {
 
             usersCollection.document(firebaseUser.uid).set(userData).await()
 
-            // 3. Добавляем подробные данные в коллекцию patients
             val patientData = hashMapOf(
                 "displayName" to displayName,
                 "phoneNumber" to phoneNumber,
@@ -120,7 +114,6 @@ class FirebaseAdminRepository : AdminRepository {
 
             patientsCollection.document(firebaseUser.uid).set(patientData).await()
 
-            // 4. Создаем и возвращаем объект пользователя
             return User(
                 id = firebaseUser.uid,
                 email = email,

@@ -1,4 +1,3 @@
-// com/example/medicalhomevisit/ui/admin/ManageRequestsScreen.kt
 package com.example.medicalhomevisit.ui.admin
 
 import androidx.compose.foundation.layout.*
@@ -15,7 +14,6 @@ import androidx.compose.ui.unit.dp
 import com.example.medicalhomevisit.data.model.AppointmentRequest
 import com.example.medicalhomevisit.data.model.RequestStatus
 import com.example.medicalhomevisit.data.model.RequestType
-import com.example.medicalhomevisit.data.model.User
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -110,7 +108,6 @@ fun ManageRequestsScreen(
                             }
                         }
                     } else {
-                        // Если список пуст, но состояние не Empty
                         Column(
                             modifier = Modifier
                                 .align(Alignment.Center)
@@ -173,7 +170,6 @@ fun ManageRequestsScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminRequestCard(
     request: AppointmentRequest,
@@ -188,7 +184,6 @@ fun AdminRequestCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // Статус и дата
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -205,7 +200,6 @@ fun AdminRequestCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Тип заявки и симптомы
             Text(
                 text = when(request.requestType) {
                     RequestType.EMERGENCY -> "Неотложный визит"
@@ -224,7 +218,6 @@ fun AdminRequestCard(
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
 
-            // Дата визита (если есть)
             if (request.preferredDate != null) {
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -248,7 +241,6 @@ fun AdminRequestCard(
                 }
             }
 
-            // Адрес
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(
@@ -272,7 +264,6 @@ fun AdminRequestCard(
                 )
             }
 
-            // Кнопка назначения врача
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedButton(

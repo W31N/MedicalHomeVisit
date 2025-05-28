@@ -1,4 +1,3 @@
-// com/example/medicalhomevisit/ui/admin/AdminViewModelFactory.kt
 package com.example.medicalhomevisit.ui.admin
 
 import androidx.lifecycle.ViewModel

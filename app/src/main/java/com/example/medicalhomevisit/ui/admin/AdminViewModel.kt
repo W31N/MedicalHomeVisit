@@ -1,4 +1,3 @@
-// com/example/medicalhomevisit/ui/admin/AdminViewModel.kt
 package com.example.medicalhomevisit.ui.admin
 
 import android.util.Log
@@ -72,7 +71,6 @@ class AdminViewModel(
                 _medicalStaff.value = staff
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading medical staff", e)
-                // Можно обновить UI-состояние, если нужно
             }
         }
     }
@@ -91,7 +89,6 @@ class AdminViewModel(
                     note = note
                 )
 
-                // Обновляем список активных заявок
                 loadActiveRequests()
 
                 _uiState.value = AdminUiState.RequestAssigned

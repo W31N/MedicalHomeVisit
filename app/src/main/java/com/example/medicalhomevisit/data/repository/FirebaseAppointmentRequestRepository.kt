@@ -28,7 +28,6 @@ class FirebaseAppointmentRequestRepository : AppointmentRequestRepository {
     }
 
     init {
-        // Слушаем изменения в коллекции заявок
         requestsCollection.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 Log.e(TAG, "Error listening for requests", error)
@@ -121,7 +120,6 @@ class FirebaseAppointmentRequestRepository : AppointmentRequestRepository {
 
             requestsCollection.document(requestId).set(requestData).await()
 
-            // Обновляем кэш, если он существует для этого пациента
             patientRequestsCache[newRequest.patientId]?.let { cache ->
                 val currentRequests = cache.value.toMutableList()
                 currentRequests.add(newRequest)
@@ -210,10 +208,8 @@ class FirebaseAppointmentRequestRepository : AppointmentRequestRepository {
 
             requestsCollection.document(requestId).update(updates).await()
 
-            // 2. Получаем обновленную заявку
             val updatedRequest = getRequestById(requestId)
 
-            // 3. Создаем соответствующий визит в коллекции visits
             val visitData = mapOf(
                 "patientId" to updatedRequest.patientId,
                 "scheduledTime" to (updatedRequest.preferredDate?.let { Timestamp(it) }
@@ -224,16 +220,15 @@ class FirebaseAppointmentRequestRepository : AppointmentRequestRepository {
                 "notes" to (updatedRequest.additionalNotes),
                 "assignedStaffId" to staffId,
                 "assignedStaffName" to staffName,
-                "originalRequestId" to requestId, // Связь с оригинальной заявкой
+                "originalRequestId" to requestId,
                 "isFromRequest" to true,
                 "createdAt" to FieldValue.serverTimestamp(),
                 "updatedAt" to FieldValue.serverTimestamp()
             )
 
-            // Создаем визит с тем же ID что и заявка для простоты связи
+
             db.collection("visits").document(requestId).set(visitData).await()
 
-            // 4. Обновляем статус заявки на SCHEDULED (запланирован)
             requestsCollection.document(requestId)
                 .update("status", RequestStatus.SCHEDULED.name)
                 .await()
@@ -360,11 +355,9 @@ class FirebaseAppointmentRequestRepository : AppointmentRequestRepository {
     }
 
     override fun observeRequestsForPatient(patientId: String): Flow<List<AppointmentRequest>> {
-        // Инициализируем кэш, если его еще нет
         if (patientId !in patientRequestsCache) {
             patientRequestsCache[patientId] = MutableStateFlow(emptyList())
 
-            // Настраиваем слушатель для реального времени
             requestsCollection
                 .whereEqualTo("patientId", patientId)
                 .addSnapshotListener { snapshot, error ->

@@ -1,4 +1,3 @@
-// com/example/medicalhomevisit/data/model/User.kt
 package com.example.medicalhomevisit.data.model
 
 data class User(

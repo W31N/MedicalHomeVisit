@@ -1,4 +1,3 @@
-// com/example/medicalhomevisit/ui/admin/AdminDashboardScreen.kt
 package com.example.medicalhomevisit.ui.admin
 
 import androidx.compose.foundation.layout.*
@@ -43,7 +42,6 @@ fun AdminDashboardScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Приветствие
             Card(
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -62,7 +60,6 @@ fun AdminDashboardScreen(
                 }
             }
 
-            // Кнопки действий
             ActionButton(
                 icon = Icons.Default.MedicalServices,
                 title = "Управление заявками на визит",

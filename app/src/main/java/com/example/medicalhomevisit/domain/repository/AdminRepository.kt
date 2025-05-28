@@ -1,4 +1,3 @@
-// com/example/medicalhomevisit/domain/repository/AdminRepository.kt
 package com.example.medicalhomevisit.domain.repository
 
 import com.example.medicalhomevisit.data.model.User

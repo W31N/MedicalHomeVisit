@@ -8,13 +8,16 @@ import com.example.medicalhomevisit.data.model.User
 import com.example.medicalhomevisit.data.model.UserRole
 import com.example.medicalhomevisit.domain.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException // Импорт для конкретного исключения
+import dagger.hilt.android.lifecycle.HiltViewModel
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class AuthViewModel(
+@HiltViewModel
+class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
@@ -24,7 +27,6 @@ class AuthViewModel(
     private val _user = MutableStateFlow<User?>(null)
     val user: StateFlow<User?> = _user.asStateFlow()
 
-    // В AuthViewModel.kt
     init {
         Log.d("AuthViewModel", "Initializing AuthViewModel...")
         viewModelScope.launch {
@@ -34,8 +36,6 @@ class AuthViewModel(
                     _uiState.value = AuthUiState.LoggedIn(user)
                     Log.d("AuthViewModel", "currentUser collected: LoggedIn, User: ${user.id}, Role: ${user.role}")
                 } else {
-                    // Если пользователь null, но мы еще не в NotLoggedIn или Initial,
-                    // возможно, стоит установить NotLoggedIn, чтобы SplashScreen среагировал
                     if (_uiState.value !is AuthUiState.Initial && _uiState.value !is AuthUiState.NotLoggedIn) {
                         _uiState.value = AuthUiState.NotLoggedIn
                         Log.d("AuthViewModel", "currentUser collected: NotLoggedIn (user is null)")

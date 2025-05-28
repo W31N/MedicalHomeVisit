@@ -1,4 +1,3 @@
-// com/example/medicalhomevisit/data/repository/FirebaseAuthRepository.kt
 package com.example.medicalhomevisit.data.repository
 
 import android.util.Log
@@ -6,7 +5,6 @@ import com.example.medicalhomevisit.data.model.Gender
 import com.example.medicalhomevisit.data.model.User
 import com.example.medicalhomevisit.data.model.UserRole
 import com.example.medicalhomevisit.domain.repository.AuthRepository
-import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.UserProfileChangeRequest
@@ -17,14 +15,12 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
-import java.util.Date
 
 class FirebaseAuthRepository : AuthRepository {
     private val auth: FirebaseAuth = Firebase.auth
     private val usersCollection = Firebase.firestore.collection("users")
-    private val patientsCollection = Firebase.firestore.collection("patients") // Добавьте ссылку на коллекцию пациентов
+    private val patientsCollection = Firebase.firestore.collection("patients")
 
-    // В FirebaseAuthRepository.kt
     override val currentUser: Flow<User?> = callbackFlow {
         Log.d(TAG, "currentUser Flow: Listener attached.")
         val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
@@ -63,7 +59,7 @@ class FirebaseAuthRepository : AuthRepository {
                             id = firebaseUser.uid,
                             email = firebaseUser.email ?: "",
                             displayName = firebaseUser.displayName ?: "",
-                            role = UserRole.PATIENT, // Дефолтная роль при ошибке
+                            role = UserRole.PATIENT,
                             isEmailVerified = firebaseUser.isEmailVerified
                         )
                         Log.d(TAG, "currentUser Flow: Trying to send user (on failure): $errorUser")
@@ -93,9 +89,8 @@ class FirebaseAuthRepository : AuthRepository {
             val role = if (userDoc.exists()) {
                 UserRole.valueOf(userDoc.getString("role") ?: UserRole.MEDICAL_STAFF.name)
             } else {
-                // Этого не должно происходить при входе, т.к. пользователь уже должен быть в users
                 Log.w(TAG, "User document not found in Firestore for UID: ${firebaseUser.uid} during sign in. Defaulting role.")
-                UserRole.MEDICAL_STAFF // Или другая логика по умолчанию
+                UserRole.MEDICAL_STAFF
             }
 
             Result.success(User(
@@ -136,13 +131,10 @@ class FirebaseAuthRepository : AuthRepository {
                 Log.d(TAG, "User role is PATIENT, creating patient record in 'patients' collection.")
                 val patientData = hashMapOf(
                     "fullName" to displayName,
-                    // dateOfBirth и gender НЕ устанавливаем здесь, если они не приходят как параметры
-                    // Они будут null или UNKNOWN по умолчанию в модели Patient,
-                    // а в Firestore эти поля просто не будут созданы или будут null
-                    "dateOfBirth" to null, // Явно null, если не передается
-                    "gender" to Gender.UNKNOWN.name, // Явно UNKNOWN, если не передается
-                    "address" to "Адрес не указан", // Или пустая строка, если это предпочтительнее
-                    "phoneNumber" to "Телефон не указан", // Или пустая строка
+                    "dateOfBirth" to null,
+                    "gender" to Gender.UNKNOWN.name,
+                    "address" to "Адрес не указан",
+                    "phoneNumber" to "Телефон не указан",
                     "policyNumber" to "",
                     "allergies" to emptyList<String>(),
                     "chronicConditions" to emptyList<String>()
@@ -205,7 +197,6 @@ class FirebaseAuthRepository : AuthRepository {
 
             firebaseUser.updateProfile(profileUpdates).await()
 
-            // Обновление в Firestore
             usersCollection.document(firebaseUser.uid)
                 .update("displayName", displayName)
                 .await()

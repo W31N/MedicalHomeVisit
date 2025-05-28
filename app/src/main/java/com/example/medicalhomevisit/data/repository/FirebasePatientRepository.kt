@@ -91,7 +91,6 @@ class FirebasePatientRepository : PatientRepository {
     }
 
     override suspend fun searchPatients(query: String): List<Patient> {
-        // ... (необходимо обновить маппинг dateOfBirth и gender аналогично getPatientById)
         Log.d(TAG, "FirebasePatientRepository: searchPatients called with query: '$query'")
         if (query.isEmpty()) {
             Log.d(TAG, "FirebasePatientRepository: Search query is empty, returning empty list.")
@@ -147,7 +146,6 @@ class FirebasePatientRepository : PatientRepository {
     }
 
     override fun observePatient(patientId: String): Flow<Patient> {
-        // ... (необходимо обновить маппинг dateOfBirth и gender аналогично getPatientById)
         Log.d(TAG, "FirebasePatientRepository: observePatient called for patientId: '$patientId'")
         if (patientId.isBlank()) {
             Log.e(TAG, "FirebasePatientRepository: observePatient - patientId is blank!")
@@ -229,7 +227,6 @@ class FirebasePatientRepository : PatientRepository {
         return cachedList
     }
 
-    // Вспомогательная функция для расчета возраста
     private fun calculateAge(dateOfBirth: Date?): Int? {
         if (dateOfBirth == null) return null
         val birthCalendar = Calendar.getInstance().apply {

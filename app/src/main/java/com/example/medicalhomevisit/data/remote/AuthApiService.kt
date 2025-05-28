@@ -1,0 +1,22 @@
+package com.example.medicalhomevisit.data.remote
+
+import com.example.medicalhomevisit.data.remote.dtos.LoginRequestDto
+import com.example.medicalhomevisit.data.remote.dtos.LoginResponseDto
+import com.example.medicalhomevisit.data.remote.dtos.PatientSelfRegisterRequestDto
+import com.example.medicalhomevisit.data.remote.dtos.UserDto
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.POST
+
+interface AuthApiService {
+
+    @POST("api/auth/login") // Путь к вашему эндпоинту
+    suspend fun login(@Body request: LoginRequestDto): Response<LoginResponseDto> // Оборачиваем в Response
+
+    @POST("api/auth/register")
+    suspend fun register(@Body request: PatientSelfRegisterRequestDto): Response<UserDto>
+
+    // Можно добавить эндпоинт /api/auth/logout, если он что-то делает на сервере
+    @POST("api/auth/logout")
+    suspend fun logout(): Response<Unit> // Или Response<String> если сервер возвращает сообщение
+}

@@ -44,7 +44,6 @@ fun RegisterPatientScreen(
 
     val dateFormatter = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
 
-    // Наблюдаем за состоянием UI для регистрации пациента
     LaunchedEffect(uiState) {
         if (uiState is AdminUiState.PatientCreated) {
             onPatientRegistered()

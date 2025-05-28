@@ -9,15 +9,13 @@ data class Visit(
     val status: VisitStatus,
     val address: String,
     val reasonForVisit: String,
-    val notes: String = "", // Изменяем на String с дефолтным значением
+    val notes: String = "",
     val assignedStaffId: String? = null,
     val assignedStaffName: String? = null,
     val actualStartTime: Date? = null,
     val actualEndTime: Date? = null,
     val createdAt: Date = Date(),
     val updatedAt: Date = Date(),
-
-    // Поля для связи с заявками
     val isFromRequest: Boolean = false,
     val originalRequestId: String? = null
 )

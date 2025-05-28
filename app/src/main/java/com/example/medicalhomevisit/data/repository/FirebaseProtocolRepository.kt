@@ -76,18 +76,15 @@ class FirebaseProtocolRepository : ProtocolRepository {
                 "updatedAt" to FieldValue.serverTimestamp()
             )
 
-            // Проверяем, есть ли уже протокол для этого визита
             val existingProtocol = getProtocolForVisit(protocol.visitId)
 
             if (existingProtocol != null) {
-                // Обновляем существующий протокол
                 protocolsCollection.document(existingProtocol.id)
                     .update(protocolData as Map<String, Any>)
                     .await()
 
                 return protocol.copy(id = existingProtocol.id)
             } else {
-                // Создаем новый протокол
                 protocolData["createdAt"] = FieldValue.serverTimestamp()
 
                 val docRef = if (protocol.id.isBlank() || protocol.id == "0") {
