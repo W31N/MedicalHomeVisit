@@ -188,28 +188,28 @@ fun LoginScreen(
             Text("Нет аккаунта? Зарегистрироваться")
         }
 
-        TextButton(
-            onClick = {
-                if (email.isNotBlank()) {
-                    if (!isValidEmail(email)) {
-                        emailFormatError = "Неверный формат email"
-                        showEmailPrompt = false
-                        viewModel.resetError()
-                        return@TextButton
-                    }
-                    emailFormatError = null
-                    showEmailPrompt = false
-                    viewModel.resetPassword(email)
-                } else {
-                    showEmailPrompt = true
-                    emailFormatError = null
-                    viewModel.resetError()
-                }
-            },
-            modifier = Modifier.padding(top = 4.dp)
-        ) {
-            Text("Забыли пароль?")
-        }
+//        TextButton(
+//            onClick = {
+//                if (email.isNotBlank()) {
+//                    if (!isValidEmail(email)) {
+//                        emailFormatError = "Неверный формат email"
+//                        showEmailPrompt = false
+//                        viewModel.resetError()
+//                        return@TextButton
+//                    }
+//                    emailFormatError = null
+//                    showEmailPrompt = false
+//                    viewModel.resetPassword(email)
+//                } else {
+//                    showEmailPrompt = true
+//                    emailFormatError = null
+//                    viewModel.resetError()
+//                }
+//            },
+//            modifier = Modifier.padding(top = 4.dp)
+//        ) {
+//            Text("Забыли пароль?")
+//        }
 
         if (uiState is AuthUiState.PasswordResetSent) {
             AlertDialog(

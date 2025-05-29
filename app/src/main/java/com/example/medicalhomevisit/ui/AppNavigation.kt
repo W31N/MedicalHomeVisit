@@ -26,7 +26,7 @@ import com.example.medicalhomevisit.ui.admin.ManageRequestsScreen
 import com.example.medicalhomevisit.ui.admin.RegisterPatientScreen
 import com.example.medicalhomevisit.ui.auth.AuthUiState
 import com.example.medicalhomevisit.ui.auth.AuthViewModel
-import com.example.medicalhomevisit.ui.auth.AuthViewModelFactory
+//import com.example.medicalhomevisit.ui.auth.AuthViewModelFactory
 import com.example.medicalhomevisit.ui.auth.LoginScreen
 import com.example.medicalhomevisit.ui.auth.SignUpScreen
 import com.example.medicalhomevisit.ui.patient.CreateRequestScreen
@@ -43,11 +43,12 @@ import com.example.medicalhomevisit.ui.visitdetail.VisitDetailViewModelFactory
 import com.example.medicalhomevisit.ui.visitlist.VisitListScreen
 import com.example.medicalhomevisit.ui.visitlist.VisitListViewModel
 import com.example.medicalhomevisit.ui.visitlist.VisitListViewModelFactory
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-    val authViewModel = remember { AuthViewModelFactory().create(AuthViewModel::class.java) }
+    val authViewModel: AuthViewModel = hiltViewModel()
     val authState by authViewModel.uiState.collectAsState()
 
     // Определяем начальный путь на основе состояния авторизации

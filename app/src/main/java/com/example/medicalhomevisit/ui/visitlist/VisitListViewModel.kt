@@ -5,7 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.medicalhomevisit.data.model.Visit
 import com.example.medicalhomevisit.data.model.VisitStatus
-import com.example.medicalhomevisit.domain.repository.AuthRepository
+import com.example.medicalhomevisit.data.repository.FirebaseAuthRepository
+//import com.example.medicalhomevisit.domain.repository.AuthRepository
 import com.example.medicalhomevisit.domain.repository.VisitRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,14 +14,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
-import java.util.Locale
 
 class VisitListViewModel(
     private val visitRepository: VisitRepository,
-    private val authRepository: AuthRepository // Добавляем AuthRepository
+    private val authRepository: FirebaseAuthRepository // Добавляем AuthRepository
 ) : ViewModel() {
 
     companion object {

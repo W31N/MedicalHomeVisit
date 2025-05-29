@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.medicalhomevisit.data.model.User
 import com.example.medicalhomevisit.data.model.UserRole
-import com.example.medicalhomevisit.domain.repository.AuthRepository
+import com.example.medicalhomevisit.data.remote.AuthRepository
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException // Импорт для конкретного исключения
 import dagger.hilt.android.lifecycle.HiltViewModel
 
@@ -30,39 +30,58 @@ class AuthViewModel @Inject constructor(
     init {
         Log.d("AuthViewModel", "Initializing AuthViewModel...")
         viewModelScope.launch {
-            authRepository.currentUser.collect { user ->
-                _user.value = user
-                if (user != null) {
-                    _uiState.value = AuthUiState.LoggedIn(user)
-                    Log.d("AuthViewModel", "currentUser collected: LoggedIn, User: ${user.id}, Role: ${user.role}")
+            authRepository.currentUser.collect { userValue -> // Переименовал user в userValue во избежание путаницы
+                _user.value = userValue
+                if (userValue != null) {
+                    _uiState.value = AuthUiState.LoggedIn(userValue)
+                    Log.d("AuthViewModel", "currentUser collected: LoggedIn, User: ${userValue.id}, Role: ${userValue.role}")
                 } else {
-                    if (_uiState.value !is AuthUiState.Initial && _uiState.value !is AuthUiState.NotLoggedIn) {
+                    // Эта логика может быть упрощена, если _uiState уже NotLoggedIn
+                    if (_uiState.value !is AuthUiState.NotLoggedIn && _uiState.value !is AuthUiState.Initial) {
                         _uiState.value = AuthUiState.NotLoggedIn
-                        Log.d("AuthViewModel", "currentUser collected: NotLoggedIn (user is null)")
+                        Log.d("AuthViewModel", "currentUser collected: NotLoggedIn (userValue is null)")
                     } else if (_uiState.value is AuthUiState.Initial) {
-                        Log.d("AuthViewModel", "currentUser collected: user is null, UI state is Initial")
+                        // Если при старте пользователь null и состояние Initial, это нормально, можно сделать NotLoggedIn
+                        _uiState.value = AuthUiState.NotLoggedIn
+                        Log.d("AuthViewModel", "currentUser collected: userValue is null, UI state was Initial, set to NotLoggedIn")
                     }
                 }
             }
         }
 
+        // Этот блок можно пока закомментировать или упростить,
+        // так как основное состояние должно приходить из authRepository.currentUser
+        // Если вы хотите активно проверять при инициализации:
         viewModelScope.launch {
-            val isLoggedIn = authRepository.isLoggedIn()
-            Log.d("AuthViewModel", "isLoggedIn check: $isLoggedIn")
-            if (isLoggedIn) {
-                val user = authRepository.getUser()
-                if (user != null) {
-                    _uiState.value = AuthUiState.LoggedIn(user)
-                    Log.d("AuthViewModel", "getUser check: LoggedIn, User: ${user.id}, Role: ${user.role}")
+            if (authRepository.isLoggedIn()) { // isLoggedIn теперь не suspend
+                Log.d("AuthViewModel", "isLoggedIn check: true")
+                // Вместо authRepository.getUser(), вызываем fetchAndUpdateCurrentUser
+                // Но fetchAndUpdateCurrentUser в новом интерфейсе возвращает User?, а не Result<User?>
+                // и может быть еще не реализован на бэкенде.
+                // Пока что, если isLoggedIn() true, мы можем ожидать, что currentUser Flow даст нам пользователя.
+                // Либо, если fetchAndUpdateCurrentUser реализован для получения данных с бэка:
+                /*
+                val userResult = authRepository.fetchAndUpdateCurrentUser() // Предположим, он возвращает Result<User?>
+                if (userResult != null && userResult.isSuccess) { // Проверяем, что не null и успешен (если Result)
+                    val fetchedUser = userResult.getOrNull()
+                    if (fetchedUser != null) {
+                        _uiState.value = AuthUiState.LoggedIn(fetchedUser)
+                        Log.d("AuthViewModel", "fetchAndUpdateCurrentUser: LoggedIn, User: ${fetchedUser.id}")
+                    } else {
+                         _uiState.value = AuthUiState.NotLoggedIn
+                         Log.w("AuthViewModel", "isLoggedIn is true, but fetchAndUpdateCurrentUser returned null user.")
+                    }
                 } else {
-                    _uiState.value = AuthUiState.NotLoggedIn // Если залогинен, но данные пользователя не получены
-                    Log.w("AuthViewModel", "isLoggedIn is true, but getUser() returned null. Setting NotLoggedIn.")
+                    _uiState.value = AuthUiState.NotLoggedIn
+                    Log.w("AuthViewModel", "isLoggedIn is true, but fetchAndUpdateCurrentUser failed or returned null.")
                 }
+                */
+                // Упрощенный вариант для начала, полагаемся на currentUser.collect:
+                Log.d("AuthViewModel", "isLoggedIn is true, currentUser Flow should provide user.")
             } else {
-                // Если пользователь не залогинен и uiState все еще Initial, можно установить NotLoggedIn
+                Log.d("AuthViewModel", "isLoggedIn check: false")
                 if (_uiState.value is AuthUiState.Initial) {
                     _uiState.value = AuthUiState.NotLoggedIn
-                    Log.d("AuthViewModel", "isLoggedIn is false, setting NotLoggedIn.")
                 }
             }
         }
@@ -94,16 +113,19 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signUp(email: String, password: String, displayName: String) {
+    fun signUp(displayName: String, email: String, password: String, confirmPassword: String) { // Добавили confirmPassword
         _uiState.value = AuthUiState.Loading
-
         viewModelScope.launch {
             try {
-                // По умолчанию устанавливаем роль PATIENT
-                val result = authRepository.signUp(email, password, displayName, UserRole.PATIENT)
+                // Вызываем signUp из нового интерфейса
+                val result = authRepository.signUp(displayName, email, password, confirmPassword)
 
                 if (result.isSuccess) {
-                    _uiState.value = AuthUiState.LoggedIn(result.getOrNull()!!)
+                    // ВАЖНО: Ваш бэкенд /api/auth/register не возвращает токен.
+                    // Поэтому AuthUiState.LoggedIn здесь может быть преждевременным.
+                    // Лучше создать новое состояние, например, AuthUiState.RegistrationSuccessful
+                    _uiState.value = AuthUiState.RegistrationSuccessful(result.getOrNull()!!) // Используем новое состояние
+                    Log.d(TAG, "Sign up successful, user data: ${result.getOrNull()}")
                 } else {
                     val exception = result.exceptionOrNull()
                     _uiState.value = AuthUiState.Error(
@@ -117,43 +139,37 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun resetPassword(email: String) {
-        viewModelScope.launch {
-            try {
-                val result = authRepository.resetPassword(email)
+//    fun resetPassword(email: String) {
+//        viewModelScope.launch {
+//            try {
+//                val result = authRepository.resetPassword(email)
+//
+//                if (result.isSuccess) {
+//                    _uiState.value = AuthUiState.PasswordResetSent
+//                } else {
+//                    val exception = result.exceptionOrNull()
+//                    _uiState.value = AuthUiState.Error(
+//                        getLocalizedErrorMessage(exception)
+//                    )
+//                }
+//            } catch (e: Exception) {
+//                _uiState.value = AuthUiState.Error(getLocalizedErrorMessage(e))
+//                Log.e(TAG, "Reset password error", e)
+//            }
+//        }
+//    }
 
-                if (result.isSuccess) {
-                    _uiState.value = AuthUiState.PasswordResetSent
-                } else {
-                    val exception = result.exceptionOrNull()
-                    _uiState.value = AuthUiState.Error(
-                        getLocalizedErrorMessage(exception)
-                    )
-                }
-            } catch (e: Exception) {
-                _uiState.value = AuthUiState.Error(getLocalizedErrorMessage(e))
-                Log.e(TAG, "Reset password error", e)
-            }
-        }
-    }
 
-
+    // В AuthViewModel.kt
     fun signOut() {
         viewModelScope.launch {
             try {
-                val result = authRepository.signOut()
-
-                if (result.isSuccess) {
-                    _uiState.value = AuthUiState.Initial
-                } else {
-                    val exception = result.exceptionOrNull()
-                    _uiState.value = AuthUiState.Error(
-                        exception?.message ?: "Ошибка при выходе"
-                    )
-                }
-            } catch (e: Exception) {
-                _uiState.value = AuthUiState.Error(e.message ?: "Неизвестная ошибка")
-                Log.e(TAG, "Sign out error", e)
+                authRepository.signOut() // Теперь не возвращает Result
+                _uiState.value = AuthUiState.Initial // Или NotLoggedIn
+                Log.d(TAG, "Sign out successful from ViewModel")
+            } catch (e: Exception) { // Этот catch теперь для ошибок в самой корутине или если signOut выбросит исключение
+                _uiState.value = AuthUiState.Error(e.message ?: "Неизвестная ошибка при выходе")
+                Log.e(TAG, "Sign out error in ViewModel", e)
             }
         }
     }
@@ -208,4 +224,5 @@ sealed class AuthUiState {
     object NotLoggedIn : AuthUiState()
     data class Error(val message: String) : AuthUiState()
     object PasswordResetSent : AuthUiState()
+    data class RegistrationSuccessful(val user: User) : AuthUiState() // Новое состояние
 }

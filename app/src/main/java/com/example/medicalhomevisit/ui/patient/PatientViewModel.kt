@@ -7,8 +7,9 @@ import com.example.medicalhomevisit.data.model.AppointmentRequest
 import com.example.medicalhomevisit.data.model.RequestStatus
 import com.example.medicalhomevisit.data.model.RequestType
 import com.example.medicalhomevisit.data.model.User
+import com.example.medicalhomevisit.data.repository.FirebaseAuthRepository
 import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
-import com.example.medicalhomevisit.domain.repository.AuthRepository
+//import com.example.medicalhomevisit.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +19,7 @@ import java.util.Date
 
 class PatientViewModel(
     private val appointmentRequestRepository: AppointmentRequestRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: FirebaseAuthRepository
 ) : ViewModel() {
 
     companion object {

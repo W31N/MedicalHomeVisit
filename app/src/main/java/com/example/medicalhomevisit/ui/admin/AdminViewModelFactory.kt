@@ -6,6 +6,7 @@ import com.example.medicalhomevisit.data.repository.FirebaseAdminRepository
 import com.example.medicalhomevisit.data.repository.FirebaseAppointmentRequestRepository
 import com.example.medicalhomevisit.data.repository.FirebaseAuthRepository
 
+
 class AdminViewModelFactory : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {

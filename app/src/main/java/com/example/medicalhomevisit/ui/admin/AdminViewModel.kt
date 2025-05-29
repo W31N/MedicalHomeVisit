@@ -5,9 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.medicalhomevisit.data.model.AppointmentRequest
 import com.example.medicalhomevisit.data.model.User
+import com.example.medicalhomevisit.data.repository.FirebaseAuthRepository
 import com.example.medicalhomevisit.domain.repository.AdminRepository
 import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
-import com.example.medicalhomevisit.domain.repository.AuthRepository
+//import com.example.medicalhomevisit.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,7 +18,7 @@ import java.util.Date
 class AdminViewModel(
     private val adminRepository: AdminRepository,
     private val appointmentRequestRepository: AppointmentRequestRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: FirebaseAuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AdminUiState>(AdminUiState.Loading)

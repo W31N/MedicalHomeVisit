@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.medicalhomevisit.data.model.Gender
 import com.example.medicalhomevisit.data.model.User
 import com.example.medicalhomevisit.data.model.UserRole
+//import com.example.medicalhomevisit.data.remote.AuthRepository
 import com.example.medicalhomevisit.domain.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException

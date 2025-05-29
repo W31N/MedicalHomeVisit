@@ -42,9 +42,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
 //        db = Firebase.firestore
 //        auth = FirebaseAuth.getInstance()
-
 //        addTestData() // Вызов функции добавления тестовых данных
 
         setContent {

@@ -117,8 +117,8 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.10.0") // OkHttp (обычно идет с Retrofit)
     implementation("com.squareup.okhttp3:logging-interceptor:4.10.0") // Для логирования запросов (полезно при отладке
 
-    implementation("com.google.dagger:hilt-android:2.56.2")
-    ksp("com.google.dagger:hilt-android-compiler:2.56.2")
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    ksp("com.google.dagger:hilt-android-compiler:2.51.1")
 
-
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 }
