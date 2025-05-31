@@ -66,12 +66,19 @@ class BackendAuthRepository(
         return withContext(Dispatchers.IO) {
             try {
                 val request = PatientSelfRegisterRequestDto(fullName, email, password, confirmPassword)
+                Log.d("BackendAuthRepo", "Sending registration request for email: $email")
                 val response = authApiService.register(request)
+                Log.d("BackendAuthRepo", "Registration response code: ${response.code()}")
                 if (response.isSuccessful && response.body() != null) {
-                    val userDto = response.body()!!
-                    // После регистрации пользователь не авторизован (бэкенд не возвращает токен)
-                    // Возвращаем данные пользователя, чтобы UI мог предложить войти.
-                    Result.success(userDto.toDomainUser())
+                    val loginResponse = response.body()!! // Теперь это LoginResponseDto
+                    Log.d("BackendAuthRepo", "Registration successful, received token: ${loginResponse.token.take(20)}...")
+                    tokenManager.saveToken(loginResponse.token)
+                    Log.d("BackendAuthRepo", "Token saved to TokenManager")
+                    val user = loginResponse.user.toDomainUser()
+                    Log.d("BackendAuthRepo", "User converted: ${user.email}, role: ${user.role}")
+                    _currentUserFlow.value = user
+                    Log.d("BackendAuthRepo", "Current user flow updated")
+                    Result.success(user)
                 } else {
                     val errorMsg = response.errorBody()?.string() ?: "Ошибка регистрации: ${response.code()}"
                     Log.e("BackendAuthRepo", "SignUp error: $errorMsg")

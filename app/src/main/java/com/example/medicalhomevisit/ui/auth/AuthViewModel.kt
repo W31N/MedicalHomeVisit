@@ -113,28 +113,29 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signUp(displayName: String, email: String, password: String, confirmPassword: String) { // Добавили confirmPassword
+    fun signUp(displayName: String, email: String, password: String, confirmPassword: String) {
         _uiState.value = AuthUiState.Loading
         viewModelScope.launch {
             try {
-                // Вызываем signUp из нового интерфейса
+                Log.d(TAG, "Starting sign up for email: $email")
                 val result = authRepository.signUp(displayName, email, password, confirmPassword)
 
                 if (result.isSuccess) {
-                    // ВАЖНО: Ваш бэкенд /api/auth/register не возвращает токен.
-                    // Поэтому AuthUiState.LoggedIn здесь может быть преждевременным.
-                    // Лучше создать новое состояние, например, AuthUiState.RegistrationSuccessful
-                    _uiState.value = AuthUiState.RegistrationSuccessful(result.getOrNull()!!) // Используем новое состояние
-                    Log.d(TAG, "Sign up successful, user data: ${result.getOrNull()}")
+                    val user = result.getOrNull()!!
+                    Log.d(TAG, "Sign up successful, user: ${user.email}, role: ${user.role}")
+                    // Если бэкенд возвращает токен, пользователь уже авторизован
+                    _uiState.value = AuthUiState.LoggedIn(user)
+                    Log.d(TAG, "UI state set to LoggedIn")
                 } else {
                     val exception = result.exceptionOrNull()
+                    Log.e(TAG, "Sign up failed: ${exception?.message}")
                     _uiState.value = AuthUiState.Error(
                         getLocalizedErrorMessage(exception)
                     )
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "Sign up exception", e)
                 _uiState.value = AuthUiState.Error(getLocalizedErrorMessage(e))
-                Log.e(TAG, "Sign up error", e)
             }
         }
     }

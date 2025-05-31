@@ -112,6 +112,7 @@ class PatientViewModel(
         viewModelScope.launch {
             try {
                 val newRequest = AppointmentRequest(
+                    id = "", // Будет присвоен на бэкенде
                     patientId = currentUser.id,
                     patientName = currentUser.displayName.ifEmpty { "Не указано" },
                     patientPhone = patientPhone, // Используем переданный параметр
@@ -125,6 +126,10 @@ class PatientViewModel(
                 )
 
                 appointmentRequestRepository.createRequest(newRequest)
+
+                // Перезагружаем список заявок после создания
+                loadRequests(currentUser.id)
+
                 _uiState.value = PatientUiState.RequestCreated
             } catch (e: Exception) {
                 Log.e(TAG, "Error creating new request", e)

@@ -14,7 +14,7 @@ interface AuthApiService {
     suspend fun login(@Body request: LoginRequestDto): Response<LoginResponseDto> // Оборачиваем в Response
 
     @POST("api/auth/register")
-    suspend fun register(@Body request: PatientSelfRegisterRequestDto): Response<UserDto>
+    suspend fun register(@Body request: PatientSelfRegisterRequestDto): Response<LoginResponseDto> // Изменили тип ответа
 
     // Можно добавить эндпоинт /api/auth/logout, если он что-то делает на сервере
     @POST("api/auth/logout")

@@ -1,6 +1,7 @@
 package com.example.medicalhomevisit.data.remote
 
 import android.content.Context
+import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
 import com.google.gson.GsonBuilder
 import dagger.Module
 import dagger.Provides
@@ -67,7 +68,6 @@ object AppModule { // Используем object для предоставле�
         return retrofit.create(AuthApiService::class.java)
     }
 
-    // Добавляем провайдер для AuthRepository
     @Provides
     @Singleton
     fun provideAuthRepository(
@@ -75,5 +75,20 @@ object AppModule { // Используем object для предоставле�
         tokenManager: TokenManager
     ): com.example.medicalhomevisit.data.remote.AuthRepository { // Указываем интерфейс
         return com.example.medicalhomevisit.data.remote.BackendAuthRepository(authApiService, tokenManager) // Возвращаем реализацию
+    }
+
+    @Provides
+    @Singleton
+    fun provideAppointmentApiService(retrofit: Retrofit): AppointmentApiService {
+        return retrofit.create(AppointmentApiService::class.java)
+    }
+
+
+    @Provides
+    @Singleton
+    fun provideAppointmentRequestRepository(
+        appointmentApiService: AppointmentApiService
+    ): AppointmentRequestRepository {
+        return BackendAppointmentRequestRepository(appointmentApiService)
     }
 }

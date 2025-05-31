@@ -32,7 +32,7 @@ import com.example.medicalhomevisit.ui.auth.SignUpScreen
 import com.example.medicalhomevisit.ui.patient.CreateRequestScreen
 import com.example.medicalhomevisit.ui.patient.PatientRequestsScreen
 import com.example.medicalhomevisit.ui.patient.PatientViewModel
-import com.example.medicalhomevisit.ui.patient.PatientViewModelFactory
+//import com.example.medicalhomevisit.ui.patient.PatientViewModelFactory
 import com.example.medicalhomevisit.ui.patient.RequestDetailsScreen
 import com.example.medicalhomevisit.ui.protocol.ProtocolScreen
 import com.example.medicalhomevisit.ui.protocol.ProtocolViewModel
@@ -44,6 +44,7 @@ import com.example.medicalhomevisit.ui.visitlist.VisitListScreen
 import com.example.medicalhomevisit.ui.visitlist.VisitListViewModel
 import com.example.medicalhomevisit.ui.visitlist.VisitListViewModelFactory
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.medicalhomevisit.ui.patient.PatientViewModelFactory
 
 @Composable
 fun AppNavigation() {
@@ -182,18 +183,32 @@ fun AppNavigation() {
                 onAuthSuccessful = {
                     val userRole = authViewModel.getCurrentUserRole()
                     Log.d("AppNavigation", "SignUp successful, user role: $userRole")
+                    Log.d("AppNavigation", "Current auth state: ${authViewModel.uiState.value}")
+
                     when (userRole) {
-                        UserRole.PATIENT -> navController.navigate(Screen.PatientHome.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
+                        UserRole.PATIENT -> {
+                            Log.d("AppNavigation", "Navigating to PatientHome")
+                            navController.navigate(Screen.PatientHome.route) {
+                                popUpTo(Screen.Login.route) { inclusive = true }
+                            }
                         }
-                        UserRole.ADMIN -> navController.navigate(Screen.AdminDashboard.route) { // ← ИСПРАВЛЯЕМ!
-                            popUpTo(Screen.Login.route) { inclusive = true }
+                        UserRole.ADMIN -> {
+                            Log.d("AppNavigation", "Navigating to AdminDashboard")
+                            navController.navigate(Screen.AdminDashboard.route) {
+                                popUpTo(Screen.Login.route) { inclusive = true }
+                            }
                         }
                         UserRole.MEDICAL_STAFF,
-                        UserRole.DISPATCHER -> navController.navigate(Screen.VisitList.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
+                        UserRole.DISPATCHER -> {
+                            Log.d("AppNavigation", "Navigating to VisitList")
+                            navController.navigate(Screen.VisitList.route) {
+                                popUpTo(Screen.Login.route) { inclusive = true }
+                            }
                         }
-                        null -> navController.navigate(Screen.Login.route)
+                        null -> {
+                            Log.e("AppNavigation", "User role is null after successful auth!")
+                            navController.navigate(Screen.Login.route)
+                        }
                     }
                 },
                 onNavigateBack = {

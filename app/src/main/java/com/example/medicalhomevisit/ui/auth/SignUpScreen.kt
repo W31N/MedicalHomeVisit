@@ -1,6 +1,7 @@
 // com/example/medicalhomevisit/ui/auth/SignUpScreen.kt
 package com.example.medicalhomevisit.ui.auth
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -34,8 +35,16 @@ fun SignUpScreen(
 
     // Наблюдаем за состоянием авторизации
     LaunchedEffect(uiState) {
-        if (uiState is AuthUiState.LoggedIn) {
-            onAuthSuccessful()
+        when (uiState) {
+            is AuthUiState.LoggedIn -> {
+                Log.d("SignUpScreen", "User logged in after registration, navigating...")
+                onAuthSuccessful()
+            }
+            is AuthUiState.RegistrationSuccessful -> {
+                Log.d("SignUpScreen", "Registration successful but not logged in, navigating...")
+                onAuthSuccessful() // Также вызываем навигацию
+            }
+            else -> {}
         }
     }
 
