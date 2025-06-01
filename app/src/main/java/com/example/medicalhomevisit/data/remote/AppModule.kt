@@ -1,7 +1,7 @@
 package com.example.medicalhomevisit.data.remote
 
 import android.content.Context
-import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
+import com.example.medicalhomevisit.data.remote.AppointmentRequestRepository
 import com.google.gson.GsonBuilder
 import dagger.Module
 import dagger.Provides
@@ -87,8 +87,15 @@ object AppModule { // Используем object для предоставле�
     @Provides
     @Singleton
     fun provideAppointmentRequestRepository(
-        appointmentApiService: AppointmentApiService
-    ): AppointmentRequestRepository {
-        return BackendAppointmentRequestRepository(appointmentApiService)
+        appointmentApiService: AppointmentApiService,
+        tokenManager: TokenManager, // Добавляем TokenManager как параметр
+        authRepository: com.example.medicalhomevisit.data.remote.AuthRepository // Добавляем AuthRepository как параметр
+        // Используй конкретный тип интерфейса, который ты указал для AuthRepository
+    ): AppointmentRequestRepository { // Это тип возвращаемого интерфейса
+        return BackendAppointmentRequestRepository(
+            appointmentApiService,
+            tokenManager, // Передаем его здесь
+            authRepository  // Передаем его здесь
+        )
     }
 }

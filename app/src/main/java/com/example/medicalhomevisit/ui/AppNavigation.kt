@@ -20,7 +20,6 @@ import androidx.navigation.navArgument
 import com.example.medicalhomevisit.data.model.UserRole
 import com.example.medicalhomevisit.ui.admin.AdminDashboardScreen
 import com.example.medicalhomevisit.ui.admin.AdminViewModel
-import com.example.medicalhomevisit.ui.admin.AdminViewModelFactory
 import com.example.medicalhomevisit.ui.admin.AssignRequestScreen
 import com.example.medicalhomevisit.ui.admin.ManageRequestsScreen
 import com.example.medicalhomevisit.ui.admin.RegisterPatientScreen
@@ -39,12 +38,10 @@ import com.example.medicalhomevisit.ui.protocol.ProtocolViewModel
 import com.example.medicalhomevisit.ui.protocol.ProtocolViewModelFactory
 import com.example.medicalhomevisit.ui.visitdetail.VisitDetailScreen
 import com.example.medicalhomevisit.ui.visitdetail.VisitDetailViewModel
-import com.example.medicalhomevisit.ui.visitdetail.VisitDetailViewModelFactory
 import com.example.medicalhomevisit.ui.visitlist.VisitListScreen
 import com.example.medicalhomevisit.ui.visitlist.VisitListViewModel
 import com.example.medicalhomevisit.ui.visitlist.VisitListViewModelFactory
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.medicalhomevisit.ui.patient.PatientViewModelFactory
 
 @Composable
 fun AppNavigation() {
@@ -239,35 +236,24 @@ fun AppNavigation() {
 
         composable(
             route = Screen.VisitDetail.route,
-            arguments = listOf(
-                navArgument(Screen.VisitDetail.ARG_VISIT_ID) {
-                    type = NavType.StringType
-                }
-            )
-        ) { backStackEntry ->
+            arguments = listOf(navArgument(Screen.VisitDetail.ARG_VISIT_ID) { type = NavType.StringType })
+        ) { backStackEntry -> // backStackEntry неявно используется hiltViewModel для аргументов
             AuthProtectedScreen(
                 requiredRoles = screenAccessMap[Screen.VisitDetail.route],
                 authState = authState,
                 navController = navController
             ) {
-                val visitId = backStackEntry.arguments?.getString(Screen.VisitDetail.ARG_VISIT_ID)
-                    ?: throw IllegalArgumentException("Не указан ID визита")
-
-                val viewModel = remember {
-                    VisitDetailViewModelFactory(visitId).create(VisitDetailViewModel::class.java)
-                }
-
+                // ИСПОЛЬЗUЕМ HILT. VisitDetailViewModel должна быть @HiltViewModel
+                // и принимать SavedStateHandle для аргумента visitId
+                val viewModel: VisitDetailViewModel = hiltViewModel()
                 VisitDetailScreen(
                     viewModel = viewModel,
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    },
-                    onNavigateToProtocol = { id ->
-                        navController.navigate(Screen.Protocol.createRoute(id))
-                    }
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToProtocol = { id -> navController.navigate(Screen.Protocol.createRoute(id)) }
                 )
             }
         }
+
 
         composable(
             route = Screen.Protocol.route,
@@ -326,7 +312,7 @@ fun AppNavigation() {
                 authState = authState,
                 navController = navController
             ) {
-                val viewModel = remember { PatientViewModelFactory().create(PatientViewModel::class.java) }
+                val viewModel: PatientViewModel = hiltViewModel()
                 PatientRequestsScreen(
                     viewModel = viewModel,
                     onCreateRequest = { navController.navigate(Screen.CreateRequest.route) },
@@ -345,7 +331,7 @@ fun AppNavigation() {
                 authState = authState,
                 navController = navController
             ) {
-                val viewModel = remember { PatientViewModelFactory().create(PatientViewModel::class.java) }
+                val viewModel: PatientViewModel = hiltViewModel()
                 CreateRequestScreen(
                     viewModel = viewModel,
                     onBackClick = { navController.popBackStack() },
@@ -371,9 +357,8 @@ fun AppNavigation() {
                 val requestId = backStackEntry.arguments?.getString(Screen.RequestDetails.ARG_REQUEST_ID)
                     ?: throw IllegalArgumentException("Не указан ID заявки")
 
-                val viewModel = remember { PatientViewModelFactory().create(PatientViewModel::class.java) }
+                val viewModel: PatientViewModel = hiltViewModel() // Та же PatientViewModel
                 val requests by viewModel.requests.collectAsState()
-
                 val request = requests.find { it.id == requestId }
 
                 if (request != null) {
@@ -386,6 +371,10 @@ fun AppNavigation() {
                         onBackClick = { navController.popBackStack() }
                     )
                 } else {
+                    LaunchedEffect(requestId) {
+                        // viewModel.loadRequestById(requestId) // Если есть такой метод
+                        // или дождаться обновления общего списка viewModel.requests
+                    }
                     Box(modifier = Modifier.fillMaxSize()) {
                         CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                     }
@@ -398,7 +387,7 @@ fun AppNavigation() {
                 authState = authState,
                 navController = navController
             ) {
-                val viewModel = remember { AdminViewModelFactory().create(AdminViewModel::class.java) }
+                val viewModel: AdminViewModel = hiltViewModel()
                 AdminDashboardScreen(
                     viewModel = viewModel,
                     onNavigateToManageRequests = { navController.navigate(Screen.ManageRequests.route) },
@@ -415,7 +404,7 @@ fun AppNavigation() {
                 authState = authState,
                 navController = navController
             ) {
-                val viewModel = remember { AdminViewModelFactory().create(AdminViewModel::class.java) }
+                val viewModel: AdminViewModel = hiltViewModel()
                 ManageRequestsScreen(
                     viewModel = viewModel,
                     onBackClick = { navController.popBackStack() },
@@ -443,7 +432,7 @@ fun AppNavigation() {
                 val requestId = backStackEntry.arguments?.getString(Screen.AssignRequest.ARG_REQUEST_ID)
                     ?: throw IllegalArgumentException("Не указан ID заявки")
 
-                val viewModel = remember { AdminViewModelFactory().create(AdminViewModel::class.java) }
+                val viewModel: AdminViewModel = hiltViewModel() // Та же AdminViewModel
                 val activeRequests by viewModel.activeRequests.collectAsState()
 
                 // Находим заявку по ID
@@ -457,14 +446,9 @@ fun AppNavigation() {
                         onRequestAssigned = { navController.popBackStack() }
                     )
                 } else {
-                    // Если заявка не найдена, показываем индикатор загрузки
+                    LaunchedEffect(Unit) { viewModel.refreshData() }
                     Box(modifier = Modifier.fillMaxSize()) {
                         CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                    }
-
-                    // Загружаем активные заявки
-                    LaunchedEffect(Unit) {
-                        viewModel.refreshData()
                     }
                 }
             }
@@ -477,7 +461,7 @@ fun AppNavigation() {
                 authState = authState,
                 navController = navController
             ) {
-                val viewModel = remember { AdminViewModelFactory().create(AdminViewModel::class.java) }
+                val viewModel: AdminViewModel = hiltViewModel() // Та же AdminViewModel
                 RegisterPatientScreen(
                     viewModel = viewModel,
                     onBackClick = { navController.popBackStack() },

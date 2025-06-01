@@ -11,8 +11,7 @@ data class AppointmentRequest(
     val requestType: RequestType,
     val symptoms: String,
     val additionalNotes: String = "",
-    val preferredDate: Date? = null,
-    val preferredTimeRange: String = "",
+    val preferredDateTime: Date? = null,
     val status: RequestStatus = RequestStatus.NEW,
     val assignedStaffId: String? = null,
     val assignedStaffName: String? = null,
@@ -22,9 +21,6 @@ data class AppointmentRequest(
     val responseMessage: String = "",
     val createdAt: Date = Date(),
     val updatedAt: Date = Date(),
-
-    val urgencyLevel: UrgencyLevel? = null,
-    val priority: Int = 0
 )
 
 enum class RequestType {
@@ -41,11 +37,4 @@ enum class RequestStatus {
     IN_PROGRESS,
     COMPLETED,
     CANCELLED
-}
-
-enum class UrgencyLevel {
-    LOW,
-    NORMAL,
-    HIGH,
-    CRITICAL
 }

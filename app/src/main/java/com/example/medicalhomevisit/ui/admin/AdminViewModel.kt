@@ -8,14 +8,16 @@ import com.example.medicalhomevisit.data.model.User
 import com.example.medicalhomevisit.data.repository.FirebaseAuthRepository
 import com.example.medicalhomevisit.domain.repository.AdminRepository
 import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 //import com.example.medicalhomevisit.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Date
+import javax.inject.Inject
 
-class AdminViewModel(
+class AdminViewModel @Inject constructor(
     private val adminRepository: AdminRepository,
     private val appointmentRequestRepository: AppointmentRequestRepository,
     private val authRepository: FirebaseAuthRepository

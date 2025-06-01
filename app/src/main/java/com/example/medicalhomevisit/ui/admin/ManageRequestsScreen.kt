@@ -218,7 +218,7 @@ fun AdminRequestCard(
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
 
-            if (request.preferredDate != null) {
+            if (request.preferredDateTime != null) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
@@ -234,7 +234,7 @@ fun AdminRequestCard(
                     Spacer(modifier = Modifier.width(4.dp))
 
                     Text(
-                        text = "Предпочт. дата: ${dateFormatter.format(request.preferredDate)}",
+                        text = "Предпочт. дата: ${dateFormatter.format(request.preferredDateTime)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

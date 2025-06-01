@@ -12,13 +12,15 @@ import com.example.medicalhomevisit.domain.repository.AppointmentRequestReposito
 import com.example.medicalhomevisit.domain.repository.PatientRepository
 import com.example.medicalhomevisit.domain.repository.ProtocolRepository
 import com.example.medicalhomevisit.domain.repository.VisitRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class VisitDetailViewModel(
+class VisitDetailViewModel @Inject constructor(
     private val visitId: String,
     private val visitRepository: VisitRepository,
     private val appointmentRequestRepository: AppointmentRequestRepository,
@@ -276,9 +278,6 @@ class VisitDetailViewModel(
                 if (request.additionalNotes.isNotBlank()) {
                     appendLine("Дополнительные заметки: ${request.additionalNotes}")
                 }
-                request.urgencyLevel?.let { urgency ->
-                    appendLine("Уровень срочности: ${getUrgencyLevelText(urgency)}")
-                }
             }
         } else null
     }
@@ -288,15 +287,6 @@ class VisitDetailViewModel(
             com.example.medicalhomevisit.data.model.RequestType.EMERGENCY -> "Неотложная"
             com.example.medicalhomevisit.data.model.RequestType.REGULAR -> "Плановая"
             com.example.medicalhomevisit.data.model.RequestType.CONSULTATION -> "Консультация"
-        }
-    }
-
-    private fun getUrgencyLevelText(urgencyLevel: com.example.medicalhomevisit.data.model.UrgencyLevel): String {
-        return when (urgencyLevel) {
-            com.example.medicalhomevisit.data.model.UrgencyLevel.LOW -> "Низкая"
-            com.example.medicalhomevisit.data.model.UrgencyLevel.NORMAL -> "Обычная"
-            com.example.medicalhomevisit.data.model.UrgencyLevel.HIGH -> "Высокая"
-            com.example.medicalhomevisit.data.model.UrgencyLevel.CRITICAL -> "Критическая"
         }
     }
 

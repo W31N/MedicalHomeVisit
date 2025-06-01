@@ -8,6 +8,7 @@ import com.example.medicalhomevisit.data.model.VisitStatus
 import com.example.medicalhomevisit.data.repository.FirebaseAuthRepository
 //import com.example.medicalhomevisit.domain.repository.AuthRepository
 import com.example.medicalhomevisit.domain.repository.VisitRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,8 +17,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
+import javax.inject.Inject
 
-class VisitListViewModel(
+class VisitListViewModel @Inject constructor(
     private val visitRepository: VisitRepository,
     private val authRepository: FirebaseAuthRepository // Добавляем AuthRepository
 ) : ViewModel() {

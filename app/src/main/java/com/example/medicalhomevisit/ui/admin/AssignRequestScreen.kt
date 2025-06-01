@@ -34,7 +34,7 @@
         var selectedStaff by remember { mutableStateOf<User?>(null) }
         var assignmentNote by remember { mutableStateOf("") }
 
-        val dateFormatter = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+        val dateFormatter = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()) }
 
         LaunchedEffect(uiState) {
             if (uiState is AdminUiState.RequestAssigned) {
@@ -92,10 +92,11 @@
                             style = MaterialTheme.typography.bodyMedium
                         )
 
-                        if (request.preferredDate != null) {
+                        // ИСПРАВЛЕНО: request.preferredDate -> request.preferredDateTime
+                        request.preferredDateTime?.let { dateTime ->
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Предпочтительная дата: ${dateFormatter.format(request.preferredDate)}",
+                                text = "Предпочтительная дата/время: ${dateFormatter.format(dateTime)}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }

@@ -123,20 +123,11 @@ fun RequestDetailsScreen(
                     )
 
                     // Предпочтительная дата
-                    if (request.preferredDate != null) {
+                    if (request.preferredDateTime != null) {
                         InfoRow(
                             icon = Icons.Default.Event,
                             label = "Предпочтительная дата",
-                            value = dateFormatter.format(request.preferredDate)
-                        )
-                    }
-
-                    // Предпочтительное время
-                    if (request.preferredTimeRange != null) {
-                        InfoRow(
-                            icon = Icons.Default.AccessTime,
-                            label = "Предпочтительное время",
-                            value = request.preferredTimeRange
+                            value = dateFormatter.format(request.preferredDateTime)
                         )
                     }
 

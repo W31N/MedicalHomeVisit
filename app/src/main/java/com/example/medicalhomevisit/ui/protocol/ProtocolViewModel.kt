@@ -8,6 +8,7 @@ import com.example.medicalhomevisit.data.model.VisitProtocol
 import com.example.medicalhomevisit.domain.model.ProtocolTemplate
 import com.example.medicalhomevisit.domain.repository.ProtocolRepository
 import com.example.medicalhomevisit.domain.repository.VisitRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,8 +16,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Date
 import java.util.UUID
+import javax.inject.Inject
 
-class ProtocolViewModel(
+class ProtocolViewModel @Inject constructor(
     private val protocolRepository: ProtocolRepository,
     private val visitRepository: VisitRepository,
     private val visitId: String
