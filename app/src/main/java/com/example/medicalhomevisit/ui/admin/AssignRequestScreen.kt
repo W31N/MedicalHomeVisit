@@ -39,6 +39,7 @@
 
         LaunchedEffect(uiState) {
             if (uiState is AdminUiState.RequestAssigned) {
+                kotlinx.coroutines.delay(500)
                 onRequestAssigned()
             }
         }

@@ -148,7 +148,8 @@ class   BackendAppointmentRequestRepository @Inject constructor(
                 val response = apiService.assignRequest(requestId, assignDto)
 
                 if (response.isSuccessful && response.body() != null) {
-                    Result.success(convertDtoToModel(response.body()!!))
+                    val updatedRequest = convertDtoToModel(response.body()!!)
+                    Result.success(updatedRequest)
                 } else {
                     Result.failure(Exception("Ошибка назначения врача"))
                 }

@@ -119,8 +119,9 @@ class AdminViewModel @Inject constructor(
                 )
                 if (result.isSuccess) {
                     Log.d(TAG, "Request $requestId assigned successfully to staff $staffId.")
+                    val updatedRequests = _activeRequests.value.filter { it.id != requestId }
+                    _activeRequests.value = updatedRequests
                     _uiState.value = AdminUiState.RequestAssigned
-                    loadActiveRequests()
                 } else {
                     val errorMsg = result.exceptionOrNull()?.message ?: "Ошибка назначения заявки"
                     Log.e(TAG, "Error assigning request: $errorMsg", result.exceptionOrNull())

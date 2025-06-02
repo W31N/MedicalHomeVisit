@@ -288,9 +288,12 @@ fun AppNavigation() {
                 authState = authState,
                 navController = navController
             ) {
-                // Если AdminViewModel должна быть общей для AdminDashboard и ManageRequests
-                // val viewModel: AdminViewModel = hiltViewModel(navController.getBackStackEntry(Screen.AdminDashboard.route))
-                val viewModel: AdminViewModel = hiltViewModel() // Пока оставим так
+                val viewModel: AdminViewModel = hiltViewModel()
+
+                LaunchedEffect(Unit) {
+                    viewModel.refreshData()
+                }
+
                 ManageRequestsScreen(
                     viewModel = viewModel,
                     onBackClick = { navController.popBackStack() },
