@@ -19,7 +19,7 @@ interface AppointmentRequestRepository {
     suspend fun getRequestsForPatient(patientId: String): Result<List<AppointmentRequest>>
 
     // Метод для получения всех активных заявок (для админа/диспетчера)
-    suspend fun getAllActiveRequests(): Result<List<AppointmentRequest>>
+    suspend fun getAllActiveRequests(): Result<List<    AppointmentRequest>>
 
     // Метод для назначения медработника на заявку
     suspend fun assignRequestToStaff(requestId: String, staffId: String, assignmentNote: String?): Result<AppointmentRequest>

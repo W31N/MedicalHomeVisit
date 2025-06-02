@@ -4,12 +4,13 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.medicalhomevisit.data.model.AppointmentRequest
+import com.example.medicalhomevisit.data.model.MedicalStaffDisplay
 import com.example.medicalhomevisit.data.model.User
-import com.example.medicalhomevisit.data.repository.FirebaseAuthRepository
-import com.example.medicalhomevisit.domain.repository.AdminRepository
-import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
+import com.example.medicalhomevisit.data.model.UserRole
+import com.example.medicalhomevisit.data.remote.AdminRepository
+import com.example.medicalhomevisit.data.remote.AppointmentRequestRepository
+import com.example.medicalhomevisit.data.remote.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-//import com.example.medicalhomevisit.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,31 +18,38 @@ import kotlinx.coroutines.launch
 import java.util.Date
 import javax.inject.Inject
 
+@HiltViewModel
 class AdminViewModel @Inject constructor(
     private val adminRepository: AdminRepository,
     private val appointmentRequestRepository: AppointmentRequestRepository,
-    private val authRepository: FirebaseAuthRepository
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<AdminUiState>(AdminUiState.Loading)
+    private val _uiState = MutableStateFlow<AdminUiState>(AdminUiState.Initial)
     val uiState: StateFlow<AdminUiState> = _uiState.asStateFlow()
 
     private val _activeRequests = MutableStateFlow<List<AppointmentRequest>>(emptyList())
     val activeRequests: StateFlow<List<AppointmentRequest>> = _activeRequests.asStateFlow()
 
-    private val _medicalStaff = MutableStateFlow<List<User>>(emptyList())
-    val medicalStaff: StateFlow<List<User>> = _medicalStaff.asStateFlow()
+    private val _medicalStaff = MutableStateFlow<List<MedicalStaffDisplay>>(emptyList())
+    val medicalStaff: StateFlow<List<MedicalStaffDisplay>> = _medicalStaff.asStateFlow()
 
     private val _user = MutableStateFlow<User?>(null)
     val user: StateFlow<User?> = _user.asStateFlow()
 
     init {
         viewModelScope.launch {
-            authRepository.currentUser.collect { user ->
-                _user.value = user
-                if (user != null) {
-                    loadActiveRequests()
-                    loadMedicalStaff()
+            authRepository.currentUser.collect { userValue ->
+                _user.value = userValue
+                if (userValue != null && (userValue.role == UserRole.ADMIN || userValue.role == UserRole.DISPATCHER) ) { // Проверка роли
+                    Log.d(TAG, "Admin/Dispatcher logged in. Loading initial data.")
+                    refreshData()
+                } else if (userValue == null) {
+                    _uiState.value = AdminUiState.Error("Пользователь не авторизован") // Или другое состояние
+                    Log.w(TAG, "User is null, cannot load admin data.")
+                } else {
+                    _uiState.value = AdminUiState.Error("Недостаточно прав доступа")
+                    Log.w(TAG, "User ${userValue.email} with role ${userValue.role} attempted to access admin panel.")
                 }
             }
         }
@@ -50,54 +58,77 @@ class AdminViewModel @Inject constructor(
     private fun loadActiveRequests() {
         viewModelScope.launch {
             _uiState.value = AdminUiState.Loading
+            Log.d(TAG, "Loading active requests...")
             try {
-                val requests = appointmentRequestRepository.getAllActiveRequests()
-                _activeRequests.value = requests
-                _uiState.value = if (requests.isEmpty()) {
-                    AdminUiState.Empty
+                val result = appointmentRequestRepository.getAllActiveRequests() // <-- ИЗМЕНЕНИЕ: ожидаем Result<>
+                if (result.isSuccess) {
+                    val requests = result.getOrNull() ?: emptyList()
+                    _activeRequests.value = requests
+                    _uiState.value = if (requests.isEmpty()) {
+                        AdminUiState.Empty
+                    } else {
+                        AdminUiState.Success // Если есть данные, то Success
+                    }
+                    Log.d(TAG, "Active requests loaded: ${requests.size}")
                 } else {
-                    AdminUiState.Success
+                    val errorMsg = result.exceptionOrNull()?.message ?: "Ошибка загрузки активных заявок"
+                    Log.e(TAG, "Error loading active requests: $errorMsg", result.exceptionOrNull())
+                    _uiState.value = AdminUiState.Error(errorMsg)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading active requests", e)
-                _uiState.value = AdminUiState.Error(e.message ?: "Ошибка загрузки заявок")
+                Log.e(TAG, "Exception loading active requests", e)
+                _uiState.value = AdminUiState.Error(e.message ?: "Непредвиденная ошибка загрузки заявок")
             }
         }
     }
 
     private fun loadMedicalStaff() {
         viewModelScope.launch {
+            Log.d(TAG, "Loading medical staff...")
             try {
-                Log.d(TAG, "Loading medical staff...")
-                val staff = adminRepository.getActiveStaff()
-                Log.d(TAG, "Loaded ${staff.size} medical staff members")
-                _medicalStaff.value = staff
+                val result = adminRepository.getActiveStaff()
+                if (result.isSuccess) {
+                    val staff = result.getOrNull() ?: emptyList()
+                    _medicalStaff.value = staff
+                    Log.d(TAG, "Loaded ${staff.size} medical staff members.")
+                } else {
+                    val errorMsg = result.exceptionOrNull()?.message ?: "Ошибка загрузки мед. персонала"
+                    Log.e(TAG, "Error loading medical staff: $errorMsg", result.exceptionOrNull())
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading medical staff", e)
             }
         }
     }
 
-    fun assignRequestToStaff(requestId: String, staffId: String, staffName: String, note: String?) {
+    fun assignRequestToStaff(requestId: String, staffId: String,  assignmentNote: String?) {
+        Log.d(TAG, "Attempting to assign request $requestId to staff $staffId with note: $assignmentNote")
+        val adminUser = _user.value
+        if (adminUser == null || (adminUser.role != UserRole.ADMIN && adminUser.role != UserRole.DISPATCHER)) {
+            _uiState.value = AdminUiState.Error("Только администратор или диспетчер могут назначать заявки.")
+            Log.w(TAG, "User ${adminUser?.email} without ADMIN/DISPATCHER role tried to assign request.")
+            return
+        }
         viewModelScope.launch {
+            _uiState.value = AdminUiState.Loading
             try {
-                val adminId = _user.value?.id ?: throw Exception("Администратор не авторизован")
-
-                _uiState.value = AdminUiState.Loading
-                appointmentRequestRepository.assignRequestToStaff(
+                val result = appointmentRequestRepository.assignRequestToStaff(
                     requestId = requestId,
                     staffId = staffId,
-                    staffName = staffName,
-                    assignedBy = adminId,
-                    note = note
+                    assignmentNote = assignmentNote
                 )
-
-                loadActiveRequests()
-
-                _uiState.value = AdminUiState.RequestAssigned
+                if (result.isSuccess) {
+                    Log.d(TAG, "Request $requestId assigned successfully to staff $staffId.")
+                    _uiState.value = AdminUiState.RequestAssigned
+                    loadActiveRequests()
+                } else {
+                    val errorMsg = result.exceptionOrNull()?.message ?: "Ошибка назначения заявки"
+                    Log.e(TAG, "Error assigning request: $errorMsg", result.exceptionOrNull())
+                    _uiState.value = AdminUiState.Error(errorMsg)
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Error assigning request to staff", e)
-                _uiState.value = AdminUiState.Error(e.message ?: "Ошибка при назначении заявки")
+                Log.e(TAG, "Exception assigning request", e)
+                _uiState.value = AdminUiState.Error(e.message ?: "Непредвиденная ошибка назначения заявки")
             }
         }
     }
@@ -109,14 +140,16 @@ class AdminViewModel @Inject constructor(
         phoneNumber: String,
         address: String,
         dateOfBirth: Date,
-        gender: String,
+        gender: String, // Рекомендую использовать Enum для gender
         medicalCardNumber: String?,
         additionalInfo: String?
     ) {
+        Log.d(TAG, "Attempting to register new patient: $email")
         viewModelScope.launch {
             _uiState.value = AdminUiState.Loading
             try {
-                adminRepository.registerNewPatient(
+                // Предполагаем, что adminRepository.registerNewPatient возвращает Result<User>
+                val result = adminRepository.registerNewPatient(
                     email = email,
                     password = password,
                     displayName = displayName,
@@ -127,15 +160,25 @@ class AdminViewModel @Inject constructor(
                     medicalCardNumber = medicalCardNumber,
                     additionalInfo = additionalInfo
                 )
-                _uiState.value = AdminUiState.PatientCreated
+                if (result.isSuccess) {
+                    Log.d(TAG, "Patient $email registered successfully.")
+                    _uiState.value = AdminUiState.PatientCreated
+                    // Здесь не нужно перезагружать списки заявок или врачей,
+                    // если только регистрация пациента на это не влияет.
+                } else {
+                    val errorMsg = result.exceptionOrNull()?.message ?: "Ошибка при регистрации пациента"
+                    Log.e(TAG, "Error registering new patient: $errorMsg", result.exceptionOrNull())
+                    _uiState.value = AdminUiState.Error(errorMsg)
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Error registering new patient", e)
-                _uiState.value = AdminUiState.Error(e.message ?: "Ошибка при регистрации пациента")
+                Log.e(TAG, "Exception registering new patient", e)
+                _uiState.value = AdminUiState.Error(e.message ?: "Непредвиденная ошибка при регистрации пациента")
             }
         }
     }
 
     fun refreshData() {
+        Log.d(TAG, "Refreshing data...")
         loadActiveRequests()
         loadMedicalStaff()
     }
@@ -146,6 +189,7 @@ class AdminViewModel @Inject constructor(
 }
 
 sealed class AdminUiState {
+    object Initial : AdminUiState()
     object Loading : AdminUiState()
     object Success : AdminUiState()
     object Empty : AdminUiState()

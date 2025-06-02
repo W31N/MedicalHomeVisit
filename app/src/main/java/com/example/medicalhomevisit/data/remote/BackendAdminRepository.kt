@@ -1,0 +1,110 @@
+package com.example.medicalhomevisit.data.remote
+import android.util.Log
+import com.example.medicalhomevisit.data.model.MedicalStaffDisplay
+import com.example.medicalhomevisit.data.model.User
+import com.example.medicalhomevisit.data.model.UserRole // Для маппинга, если нужно
+import com.example.medicalhomevisit.data.remote.dtos.MedicalPersonDto // DTO с бэкенда
+import com.example.medicalhomevisit.data.remote.dtos.AdminPatientRegistrationDto // DTO для отправки на бэкенд
+import com.example.medicalhomevisit.data.remote.dtos.UserDto // DTO User с бэкенда (если регистрация возвращает его)
+import com.example.medicalhomevisit.data.remote.AdminRepository// Интерфейс из domain
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.Date
+import javax.inject.Inject
+
+class BackendAdminRepository @Inject constructor(
+    private val adminApiService: AdminApiService,
+    private val tokenManager: TokenManager
+) : AdminRepository {
+
+    companion object {
+        private const val TAG = "BackendAdminRepo"
+    }
+
+    override suspend fun getActiveStaff(): Result<List<MedicalStaffDisplay>> {
+        Log.d(TAG, "getActiveStaff called")
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = adminApiService.getActiveMedicalStaff() // Вызов метода из AdminApiService
+                Log.d(TAG, "getActiveMedicalStaff API response: code=${response.code()}, isSuccessful=${response.isSuccessful}")
+                if (response.isSuccessful && response.body() != null) {
+                    val staffDtoList = response.body()!!
+                    Log.d(TAG, "getActiveMedicalStaff successful. Received ${staffDtoList.size} DTOs.")
+                    val staffDomainList = staffDtoList.map { dto ->
+                        // Маппинг MedicalPersonDto (с бэкенда) в твою клиентскую модель User
+                        // Важно: User.id должен стать dto.medicalPersonId
+                        MedicalStaffDisplay(
+                            medicalPersonId  = dto.medicalPersonId.toString(),
+                            userId = dto.userId.toString(),
+                            displayName = dto.fullName,
+                            role = UserRole.MEDICAL_STAFF,
+                            specialization = dto.specialization
+                        )
+                    }
+                    Log.d(TAG, "Mapped to ${staffDomainList.size} User domain models for staff list.")
+                    Result.success(staffDomainList)
+                } else {
+                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                    Log.e(TAG, "Error getting active staff: Code=${response.code()}, Body='$errorBody'")
+                    Result.failure(Exception("Ошибка загрузки мед. персонала (код: ${response.code()})"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception in getActiveStaff", e)
+                Result.failure(e)
+            }
+        }
+    }
+
+    override suspend fun registerNewPatient(
+        email: String,
+        password: String,
+        displayName: String,
+        phoneNumber: String,
+        address: String,
+        dateOfBirth: Date,
+        gender: String,
+        medicalCardNumber: String?,
+        additionalInfo: String?
+    ): Result<User> {
+        Log.d(TAG, "registerNewPatient called for email: $email")
+        return withContext(Dispatchers.IO) {
+            try {
+                val registrationDto = AdminPatientRegistrationDto( // Создай этот DTO
+                    email = email,
+                    password = password, // Пароль должен передаваться на бэк для хеширования там
+                    fullName = displayName,
+                    phoneNumber = phoneNumber,
+                    address = address,
+                    dateOfBirth = dateOfBirth, // Подумай о формате (ISO строка?)
+                    gender = gender,
+                    medicalCardNumber = medicalCardNumber,
+                    additionalInfo = additionalInfo
+                )
+                Log.d(TAG, "Attempting to register patient on backend with DTO: $registrationDto")
+
+                // Предполагаем, что AdminApiService имеет метод registerPatientByAdmin
+                // и бэкенд имеет эндпоинт типа POST /api/admin/register-patient
+                val response = adminApiService.registerPatientByAdmin(registrationDto)
+                Log.d(TAG, "Register patient API response: code=${response.code()}, isSuccessful=${response.isSuccessful}")
+
+                if (response.isSuccessful && response.body() != null) {
+                    val userDto = response.body()!! // Бэкенд должен вернуть UserDto созданного пациента
+                    Log.d(TAG, "Patient registration successful. Response UserDto: $userDto")
+                    // Маппинг UserDto (с бэкенда) в твою клиентскую модель User
+                    // Используй свою функцию UserDto.toDomainUser() если она подходит
+                    val createdUser = userDto.toDomainUser() // Предполагается, что у тебя есть такая функция-расширение
+                    Result.success(createdUser)
+                } else {
+                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                    Log.e(TAG, "Error registering patient: Code=${response.code()}, Body='$errorBody'")
+                    Result.failure(Exception("Ошибка регистрации пациента (код: ${response.code()})"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception in registerNewPatient", e)
+                Result.failure(e)
+            }
+        }
+    }
+    // Не забудь функцию UserDto.toDomainUser(), если она у тебя в другом месте
+    // или определи маппинг здесь
+}

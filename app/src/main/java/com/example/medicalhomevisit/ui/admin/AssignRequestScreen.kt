@@ -15,6 +15,7 @@
     import androidx.compose.ui.text.style.TextAlign
     import androidx.compose.ui.unit.dp
     import com.example.medicalhomevisit.data.model.AppointmentRequest
+    import com.example.medicalhomevisit.data.model.MedicalStaffDisplay
     import com.example.medicalhomevisit.data.model.RequestType
     import com.example.medicalhomevisit.data.model.User
     import java.text.SimpleDateFormat
@@ -31,9 +32,9 @@
         val uiState by viewModel.uiState.collectAsState()
         val medicalStaff by viewModel.medicalStaff.collectAsState()
 
-        var selectedStaff by remember { mutableStateOf<User?>(null) }
+        var selectedStaff by remember { mutableStateOf<MedicalStaffDisplay?>(null) }
         var assignmentNote by remember { mutableStateOf("") }
-
+        selectedStaff
         val dateFormatter = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()) }
 
         LaunchedEffect(uiState) {
@@ -169,13 +170,13 @@
                                         .fillMaxWidth()
                                         .padding(vertical = 8.dp)
                                         .selectable(
-                                            selected = selectedStaff?.id == staff.id,
+                                            selected = selectedStaff?.medicalPersonId == staff.medicalPersonId,
                                             onClick = { selectedStaff = staff }
                                         ),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     RadioButton(
-                                        selected = selectedStaff?.id == staff.id,
+                                        selected = selectedStaff?.medicalPersonId == staff.medicalPersonId,
                                         onClick = { selectedStaff = staff }
                                     )
 
@@ -211,12 +212,13 @@
 
                 Button(
                     onClick = {
-                        if (selectedStaff != null) {
+                        selectedStaff?.let { staff -> // Безопасный вызов
+                            // Убедись, что staff.id здесь - это medicalPersonId
                             viewModel.assignRequestToStaff(
                                 requestId = request.id,
-                                staffId = selectedStaff!!.id,
-                                staffName = selectedStaff!!.displayName,
-                                note = assignmentNote.ifBlank { null }
+                                staffId = staff.medicalPersonId, // Это должен быть ID из MedicalPersonDto.medicalPersonId
+                                // staffName больше не передаем
+                                assignmentNote = assignmentNote.ifBlank { null } // ИСПРАВЛЕНО: имя параметра
                             )
                         }
                     },

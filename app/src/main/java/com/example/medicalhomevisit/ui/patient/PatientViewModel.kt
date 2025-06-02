@@ -150,11 +150,9 @@ class PatientViewModel @Inject constructor(
             try {
                 val newRequest = AppointmentRequest(
                     id = "", // Будет присвоен на бэкенде
-                    patientId = currentUser.id,
-                    patientName = currentUser.displayName.ifEmpty { "Пациент" }, // Более общее значение по умолчанию
-                    patientPhone = "Не указан", // Используем телефон из User, если есть, иначе заглушка
-                    // Убедись, что твоя модель User имеет поле phone: String?
-                    // Если нет, то просто "Не указан"
+                    patientId = "",
+                    patientName = currentUser.displayName.ifEmpty { "Пациент" },
+                    patientPhone = "Не указан",
                     address = address,
                     requestType = requestType,
                     symptoms = symptoms,
