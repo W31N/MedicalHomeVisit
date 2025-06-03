@@ -1,34 +1,38 @@
 package com.example.medicalhomevisit.domain.repository
 
-import com.example.medicalhomevisit.data.model.AppointmentRequest
-import com.example.medicalhomevisit.data.model.RequestStatus
+import com.example.medicalhomevisit.domain.model.AppointmentRequest
+import com.example.medicalhomevisit.domain.model.RequestStatus
 import kotlinx.coroutines.flow.Flow
 
 interface AppointmentRequestRepository {
-    suspend fun createRequest(request: AppointmentRequest): AppointmentRequest
-    suspend fun getRequestById(requestId: String): AppointmentRequest
-    suspend fun getPendingRequests(): List<AppointmentRequest>
-    suspend fun getAllActiveRequests(): List<AppointmentRequest>
-    suspend fun assignRequestToStaff(
-        requestId: String,
-        staffId: String,
-        staffName: String,
-        assignedBy: String,
-        note: String? = null
-    ): AppointmentRequest
-    suspend fun updateRequestStatus(requestId: String, status: RequestStatus)
-    suspend fun updateRequestStatus(
-        requestId: String,
-        status: RequestStatus,
-        responseMessage: String?
-    ): AppointmentRequest
-    suspend fun getRequestsForStaff(staffId: String): List<AppointmentRequest>
-    suspend fun getRequestsForPatient(patientId: String): List<AppointmentRequest>
-    suspend fun getActiveRequestsForPatient(patientId: String): List<AppointmentRequest>
-    suspend fun cancelRequest(requestId: String, reason: String): AppointmentRequest
-    fun observeRequests(): Flow<List<AppointmentRequest>>
-    fun observeRequestsForPatient(patientId: String): Flow<List<AppointmentRequest>>
-    suspend fun syncRequests(): Result<List<AppointmentRequest>>
-    suspend fun cacheRequests(requests: List<AppointmentRequest>)
-    suspend fun getCachedRequests(): List<AppointmentRequest>
+    // Метод для создания заявки пациентом
+    suspend fun createRequest(request: AppointmentRequest): Result<AppointmentRequest>
+
+    // Метод для получения заявки по ID
+    suspend fun getRequestById(requestId: String): Result<AppointmentRequest>
+
+    // Метод для получения заявок текущего аутентифицированного пациента
+    suspend fun getMyRequests(): Result<List<AppointmentRequest>>
+
+    // Метод для получения заявок конкретного пациента (например, для админа)
+    suspend fun getRequestsForPatient(patientId: String): Result<List<AppointmentRequest>>
+
+    // Метод для получения всех активных заявок (для админа/диспетчера)
+    suspend fun getAllActiveRequests(): Result<List<AppointmentRequest>>
+
+    // Метод для назначения медработника на заявку
+    suspend fun assignRequestToStaff(requestId: String, staffId: String, assignmentNote: String?): Result<AppointmentRequest>
+
+    // Метод для обновления статуса заявки
+    suspend fun updateRequestStatus(requestId: String, newStatus: RequestStatus, responseMessage: String?): Result<AppointmentRequest>
+
+    // Метод для отмены заявки
+    suspend fun cancelRequest(requestId: String, reason: String): Result<AppointmentRequest>
+
+    // Метод для получения назначенных заявок для ТЕКУЩЕГО медработника
+    suspend fun getMyAssignedRequests(): Result<List<AppointmentRequest>>
+
+    // Поток для наблюдения за "моими" заявками (заявками текущего пациента)
+    fun observeMyRequests(): Flow<List<AppointmentRequest>>
+
 }

@@ -1,0 +1,658 @@
+package com.example.medicalhomevisit.presentation.navigation
+
+import android.util.Log
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.example.medicalhomevisit.domain.model.UserRole
+import com.example.medicalhomevisit.ui.admin.AdminDashboardScreen
+import com.example.medicalhomevisit.ui.admin.AdminViewModel
+import com.example.medicalhomevisit.ui.admin.AssignRequestScreen
+import com.example.medicalhomevisit.ui.admin.ManageRequestsScreen
+import com.example.medicalhomevisit.ui.admin.RegisterPatientScreen
+import com.example.medicalhomevisit.ui.auth.AuthUiState
+import com.example.medicalhomevisit.ui.auth.AuthViewModel
+import com.example.medicalhomevisit.ui.auth.LoginScreen
+import com.example.medicalhomevisit.ui.auth.SignUpScreen
+import com.example.medicalhomevisit.ui.patient.CreateRequestScreen
+import com.example.medicalhomevisit.ui.patient.PatientRequestsScreen
+import com.example.medicalhomevisit.ui.patient.PatientViewModel
+import com.example.medicalhomevisit.ui.patient.RequestDetailsScreen
+import com.example.medicalhomevisit.ui.protocol.ProtocolScreen
+import com.example.medicalhomevisit.ui.protocol.ProtocolViewModel
+import com.example.medicalhomevisit.ui.visitdetail.VisitDetailScreen
+import com.example.medicalhomevisit.ui.visitdetail.VisitDetailViewModel
+import com.example.medicalhomevisit.ui.visitlist.VisitListScreen
+import com.example.medicalhomevisit.ui.visitlist.VisitListViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavHostController
+import androidx.navigation.navigation
+import com.example.medicalhomevisit.presentation.ui.ProfileScreen
+import com.example.medicalhomevisit.ui.patient.PatientUiState
+
+object PatientNavGraph {
+    const val route = "patient_graph_route"
+}
+
+object AdminNavGraph {
+    const val route = "admin_graph_route"
+}
+
+sealed class Screen(val route: String) {
+    object SplashScreen : Screen("splash_screen")
+    object Login : Screen("login")
+    object SignUp : Screen("signup")
+    object VisitList : Screen("visitList")
+    object Profile : Screen("profile")
+
+    object PatientHome : Screen("patientHome")
+    object CreateRequest : Screen("createRequest")
+    object RequestDetails : Screen("requestDetails/{requestId}") {
+        const val ARG_REQUEST_ID = "requestId"
+        fun createRoute(requestId: String) = "requestDetails/$requestId"
+    }
+
+    object VisitDetail : Screen("visitDetail/{visitId}") {
+        const val ARG_VISIT_ID = "visitId"
+        fun createRoute(visitId: String) = "visitDetail/$visitId"
+    }
+
+    object Protocol : Screen("protocol/{visitId}") {
+        const val ARG_VISIT_ID = "visitId"
+        fun createRoute(visitId: String) = "protocol/$visitId"
+    }
+    object AdminDashboard : Screen("adminDashboard")
+    object ManageRequests : Screen("manageRequests")
+    object AssignRequest : Screen("assignRequest/{requestId}") {
+        const val ARG_REQUEST_ID = "requestId"
+        fun createRoute(requestId: String) = "assignRequest/$requestId"
+    }
+    object RegisterPatient : Screen("registerPatient")
+}
+
+
+@Composable
+fun AppNavigation() {
+    val navController = rememberNavController()
+    val authViewModel: AuthViewModel = hiltViewModel()
+    val authState by authViewModel.uiState.collectAsState()
+
+    var hasNavigatedFromSplash by rememberSaveable { mutableStateOf(false) }
+
+
+    LaunchedEffect(authState) {
+        val currentAuthState = authState // Захватываем текущее состояние
+        Log.d("AppNavigation", "AuthState CHANGED to: $currentAuthState")
+        when (currentAuthState) {
+            is AuthUiState.LoggedIn -> {
+                Log.d("AppNavigation", "LoggedIn detected - User: ${currentAuthState.user.email}, Role: ${currentAuthState.user.role}")
+            }
+            is AuthUiState.Error -> {
+                Log.d("AppNavigation", "Error state: ${currentAuthState.message}")
+            }
+            else -> {
+                Log.d("AppNavigation", "Other state: $currentAuthState")
+            }
+        }
+    }
+
+    val screenAccessMap = mapOf(
+        Screen.Login.route to null,
+        Screen.SignUp.route to null,
+        Screen.Profile.route to null,
+        PatientNavGraph.route to listOf(UserRole.PATIENT), // Доступ к самому графу пациента
+        AdminNavGraph.route to listOf(UserRole.ADMIN, UserRole.DISPATCHER), // Доступ к самому графу админа
+        Screen.VisitList.route to listOf(UserRole.MEDICAL_STAFF, UserRole.DISPATCHER),
+        Screen.VisitDetail.route to listOf(UserRole.MEDICAL_STAFF, UserRole.DISPATCHER),
+        Screen.Protocol.route to listOf(UserRole.MEDICAL_STAFF, UserRole.DISPATCHER),
+    )
+
+    NavHost(
+        navController = navController,
+        startDestination = Screen.SplashScreen.route
+    ) {
+        // Замените ваш SplashScreen composable на этот:
+        composable(Screen.SplashScreen.route) {
+            SplashScreen()
+            Log.d("AppNavigation", "SplashScreen composable - Current authState: $authState")
+            LaunchedEffect(authState) {
+                Log.d("AppNavigation", "SplashScreen LaunchedEffect triggered with authState: $authState")
+
+                // Создаем локальную переменную для smart cast
+                val currentState = authState
+
+                // Убираем проверку hasNavigatedFromSplash - пусть навигация происходит естественно
+                val destination: String? = when (currentState) {
+                    is AuthUiState.LoggedIn -> {
+                        Log.d("AppNavigation", "User logged in with role: ${currentState.user.role}")
+                        when (currentState.user.role) {
+                            UserRole.PATIENT -> {
+                                Log.d("AppNavigation", "Routing to PatientNavGraph")
+                                PatientNavGraph.route
+                            }
+                            UserRole.ADMIN, UserRole.DISPATCHER -> {
+                                Log.d("AppNavigation", "Routing to AdminNavGraph for role: ${currentState.user.role}")
+                                AdminNavGraph.route
+                            }
+                            UserRole.MEDICAL_STAFF -> {
+                                Log.d("AppNavigation", "Routing to VisitList")
+                                Screen.VisitList.route
+                            }
+                        }
+                    }
+                    is AuthUiState.NotLoggedIn, is AuthUiState.Error -> {
+                        Log.d("AppNavigation", "User not logged in or error state, routing to Login")
+                        Screen.Login.route
+                    }
+                    is AuthUiState.RegistrationSuccessful -> {
+                        Log.d("AppNavigation", "Registration successful for role: ${currentState.user.role}")
+                        when (currentState.user.role) {
+                            UserRole.PATIENT -> PatientNavGraph.route
+                            UserRole.ADMIN, UserRole.DISPATCHER -> AdminNavGraph.route
+                            UserRole.MEDICAL_STAFF -> Screen.VisitList.route
+                        }
+                    }
+                    AuthUiState.PasswordResetSent -> {
+                        Log.d("AppNavigation", "Password reset sent, routing to Login")
+                        Screen.Login.route
+                    }
+
+                    is AuthUiState.Initial, is AuthUiState.Loading -> {
+                        Log.d("AppNavigation", "Auth state is initial or loading, waiting...")
+                        null
+                    }
+                }
+                destination?.let {
+                    Log.d("AppNavigation", "===== NAVIGATING FROM SPLASH =====")
+                    Log.d("AppNavigation", "Destination: $it")
+
+                    navController.navigate(it) {
+                        popUpTo(Screen.SplashScreen.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                    Log.d("AppNavigation", "Navigation call completed")
+                }
+            }
+        }
+
+        composable(Screen.Login.route) {
+            Log.d("AppNavigation", "🔐 Login screen composable")
+            // Убираем сброс флага hasNavigatedFromSplash здесь
+            LoginScreen(
+                viewModel = authViewModel,
+                onAuthSuccessful = {
+                    Log.d("AppNavigation", "Login successful callback triggered")
+
+                    // Добавляем навигацию после успешной авторизации
+                    val currentAuthState = authViewModel.uiState.value
+                    if (currentAuthState is AuthUiState.LoggedIn) {
+                        val destination = when (currentAuthState.user.role) {
+                            UserRole.PATIENT -> {
+                                Log.d("AppNavigation", "Navigating to PatientNavGraph after login")
+                                PatientNavGraph.route
+                            }
+                            UserRole.ADMIN, UserRole.DISPATCHER -> {
+                                Log.d("AppNavigation", "Navigating to AdminNavGraph after login")
+                                AdminNavGraph.route
+                            }
+                            UserRole.MEDICAL_STAFF -> {
+                                Log.d("AppNavigation", "Navigating to VisitList after login")
+                                Screen.VisitList.route
+                            }
+                        }
+
+                        Log.d("AppNavigation", "Destination after login: $destination")
+                        navController.navigate(destination) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                },
+                onNavigateToSignUp = {
+                    Log.d("AppNavigation", "Navigating to SignUp")
+                    navController.navigate(Screen.SignUp.route)
+                }
+            )
+
+            LaunchedEffect(authState) {
+                val currentState = authState
+                if (currentState is AuthUiState.LoggedIn) {
+                    Log.d("AppNavigation", "AuthState changed to LoggedIn in LoginScreen")
+                    val destination = when (currentState.user.role) {
+                        UserRole.PATIENT -> PatientNavGraph.route
+                        UserRole.ADMIN, UserRole.DISPATCHER -> AdminNavGraph.route
+                        UserRole.MEDICAL_STAFF -> Screen.VisitList.route
+                    }
+
+                    Log.d("AppNavigation", "Auto-navigating to: $destination")
+                    navController.navigate(destination) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
+        }
+
+        composable(Screen.SignUp.route) {
+            Log.d("AppNavigation", "SignUp screen composable")
+
+            SignUpScreen(
+                viewModel = authViewModel,
+                onAuthSuccessful = {
+                    Log.d("AppNavigation", "Signup successful callback triggered")
+                },
+                onNavigateBack = {
+                    Log.d("AppNavigation", "Navigating back from SignUp")
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        patientGraph(navController, authViewModel, authState, screenAccessMap)
+
+
+        Log.d("AppNavigation", "Setting up admin graph")
+        adminGraph(navController, authViewModel, authState, screenAccessMap)
+
+        composable(Screen.VisitList.route) {
+            Log.d("AppNavigation", "VisitList screen composable")
+            ImprovedAuthProtectedScreen(
+                requiredRoles = screenAccessMap[Screen.VisitList.route],
+                authState = authState,
+                navController = navController
+            ) {
+                val viewModel: VisitListViewModel = hiltViewModel()
+                VisitListScreen(viewModel,
+                    onVisitClick = {navController.navigate(Screen.VisitDetail.createRoute(it.id))},
+                    onProfileClick = {navController.navigate(Screen.Profile.route)}
+                )
+            }
+        }
+
+        composable(
+            route = Screen.VisitDetail.route,
+            arguments = listOf(navArgument(Screen.VisitDetail.ARG_VISIT_ID) { type = NavType.StringType })
+        ) {
+            ImprovedAuthProtectedScreen(
+                requiredRoles = screenAccessMap[Screen.VisitDetail.route],
+                authState = authState,
+                navController = navController
+            ) {
+                val viewModel: VisitDetailViewModel = hiltViewModel()
+                VisitDetailScreen(viewModel,
+                    onNavigateBack = {navController.popBackStack()},
+                    onNavigateToProtocol = {navController.navigate(Screen.Protocol.createRoute(it))}
+                )
+            }
+        }
+
+        composable(
+            route = Screen.Protocol.route,
+            arguments = listOf(navArgument(Screen.Protocol.ARG_VISIT_ID) { type = NavType.StringType })
+        ) { backStackEntry ->
+            ImprovedAuthProtectedScreen(
+                requiredRoles = screenAccessMap[Screen.Protocol.route],
+                authState = authState,
+                navController = navController
+            ) {
+                // visitId автоматически передается через SavedStateHandle
+                val viewModel: ProtocolViewModel = hiltViewModel()
+
+                // Если ProtocolScreen ожидает visitId как параметр, получите его из аргументов:
+                val visitId = backStackEntry.arguments?.getString(Screen.Protocol.ARG_VISIT_ID) ?: ""
+
+                ProtocolScreen(
+                    viewModel = viewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                    // visitId больше не нужно передавать в ViewModel - он получит его автоматически
+                )
+            }
+        }
+
+
+        composable(Screen.Profile.route) {
+            ImprovedAuthProtectedScreen(
+                requiredRoles = null,
+                authState = authState,
+                navController = navController
+            ) {
+                ProfileScreen(
+                    viewModel = authViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onSignOut = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.SplashScreen.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+
+fun NavGraphBuilder.adminGraph(
+    navController: NavHostController,
+    authViewModelPassed: AuthViewModel,
+    authStatePassed: AuthUiState,
+    screenAccessMapPassed: Map<String, List<UserRole>?>
+) {
+    Log.d("AppNavigation", "Building admin navigation graph")
+
+    navigation(
+        startDestination = Screen.AdminDashboard.route,
+        route = AdminNavGraph.route
+    ) {
+        composable(Screen.AdminDashboard.route) { navBackStackEntry ->
+            Log.d("AppNavigation", "AdminDashboard composable entered")
+            val adminViewModel: AdminViewModel = hiltViewModel(
+                remember(navBackStackEntry) {
+                    navController.getBackStackEntry(AdminNavGraph.route)
+                }
+            )
+
+            Log.d("AppNavigation", "AdminViewModel created, showing AdminDashboardScreen")
+
+            AdminDashboardScreen(
+                viewModel = adminViewModel,
+                onNavigateToManageRequests = {
+                    Log.d("AppNavigation", "Navigating to ManageRequests")
+                    navController.navigate(Screen.ManageRequests.route)
+                },
+                onNavigateToRegisterPatient = {
+                    Log.d("AppNavigation", "Navigating to RegisterPatient")
+                    navController.navigate(Screen.RegisterPatient.route)
+                },
+                onNavigateToProfile = {
+                    Log.d("AppNavigation", "Navigating to Profile")
+                    navController.navigate(Screen.Profile.route)
+                }
+            )
+        }
+
+        composable(Screen.ManageRequests.route) { navBackStackEntry ->
+            Log.d("AppNavigation", "ManageRequests composable entered")
+
+            val adminViewModel: AdminViewModel = hiltViewModel(
+                remember(navBackStackEntry) {
+                    navController.getBackStackEntry(AdminNavGraph.route)
+                }
+            )
+
+            LaunchedEffect(Unit) {
+                adminViewModel.refreshData()
+            }
+
+            ManageRequestsScreen(
+                viewModel = adminViewModel,
+                onBackClick = { navController.popBackStack() },
+                onAssignRequest = { request ->
+                    navController.navigate(Screen.AssignRequest.createRoute(request.id))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.AssignRequest.route,
+            arguments = listOf(navArgument(Screen.AssignRequest.ARG_REQUEST_ID) { type = NavType.StringType })
+        ) { backStackEntry ->
+            Log.d("AppNavigation", "AssignRequest composable entered")
+
+            val adminViewModel: AdminViewModel = hiltViewModel(
+                remember(backStackEntry) {
+                    navController.getBackStackEntry(AdminNavGraph.route)
+                }
+            )
+            val requestId = backStackEntry.arguments?.getString(Screen.AssignRequest.ARG_REQUEST_ID)
+                ?: throw IllegalArgumentException("Не указан ID заявки")
+
+            val activeRequests by adminViewModel.activeRequests.collectAsState()
+            val request = remember(activeRequests, requestId) {
+                activeRequests.find { it.id == requestId }
+            }
+
+            if (request != null) {
+                AssignRequestScreen(
+                    viewModel = adminViewModel,
+                    request = request,
+                    onBackClick = { navController.popBackStack() },
+                    onRequestAssigned = {
+                        Log.d("AppNavigation", "Request assigned, navigating back to ManageRequests")
+                        navController.popBackStack()
+                    }
+                )
+            } else {
+                // ИЗМЕНЕНИЕ: Улучшенная обработка случая, когда заявка не найдена
+                LaunchedEffect(Unit) {
+                    Log.d("AppNavigation", "Request not found, refreshing data and navigating back")
+                    adminViewModel.refreshData()
+                    navController.popBackStack()
+                }
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Заявка обработана, возвращаемся к списку...")
+                    }
+                }
+            }
+        }
+
+        composable(Screen.RegisterPatient.route) { navBackStackEntry ->
+            Log.d("AppNavigation", "RegisterPatient composable entered")
+
+            val adminViewModel: AdminViewModel = hiltViewModel(
+                remember(navBackStackEntry) {
+                    navController.getBackStackEntry(AdminNavGraph.route)
+                }
+            )
+            RegisterPatientScreen(
+                viewModel = adminViewModel,
+                onBackClick = { navController.popBackStack() },
+                onPatientRegistered = {
+                    navController.popBackStack()
+                }
+            )
+        }
+    }
+
+    Log.d("AppNavigation", "Admin graph setup completed")
+}
+
+fun NavGraphBuilder.patientGraph(
+    navController: NavHostController,
+    authViewModelPassed: AuthViewModel,
+    authStatePassed: AuthUiState,
+    screenAccessMapPassed: Map<String, List<UserRole>?>
+) {
+    navigation(
+        startDestination = Screen.PatientHome.route,
+        route = PatientNavGraph.route
+    ) {
+        composable(Screen.PatientHome.route) { navBackStackEntry ->
+            val patientViewModel: PatientViewModel = hiltViewModel(
+                remember(navBackStackEntry) {
+                    navController.getBackStackEntry(PatientNavGraph.route)
+                }
+            )
+            PatientRequestsScreen(
+                viewModel = patientViewModel,
+                onCreateRequest = { navController.navigate(Screen.CreateRequest.route) },
+                onRequestDetails = { requestId ->
+                    navController.navigate(Screen.RequestDetails.createRoute(requestId))
+                },
+                onProfileClick = { navController.navigate(Screen.Profile.route) }
+            )
+        }
+
+        composable(Screen.CreateRequest.route) { navBackStackEntry ->
+            val patientViewModel: PatientViewModel = hiltViewModel(
+                remember(navBackStackEntry) {
+                    navController.getBackStackEntry(PatientNavGraph.route)
+                }
+            )
+            CreateRequestScreen(
+                viewModel = patientViewModel,
+                onBackClick = { navController.popBackStack() },
+                onRequestCreated = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.RequestDetails.route,
+            arguments = listOf(navArgument(Screen.RequestDetails.ARG_REQUEST_ID) { type = NavType.StringType })
+        ) { backStackEntry ->
+            val patientViewModel: PatientViewModel = hiltViewModel(
+                remember(backStackEntry) {
+                    navController.getBackStackEntry(PatientNavGraph.route)
+                }
+            )
+            val requestId = backStackEntry.arguments?.getString(Screen.RequestDetails.ARG_REQUEST_ID)
+                ?: throw IllegalArgumentException("Не указан ID заявки")
+
+            val requests by patientViewModel.requests.collectAsState()
+            val request = remember(requests, requestId) {
+                requests.find { it.id == requestId }
+            }
+
+            if (request != null) {
+                RequestDetailsScreen(
+                    request = request,
+                    onCancelRequest = { reason ->
+                        patientViewModel.cancelRequest(requestId, reason)
+                        navController.popBackStack()
+                    },
+                    onBackClick = { navController.popBackStack() }
+                )
+            } else {
+                LaunchedEffect(key1 = patientViewModel, key2 = requestId) {
+                    if (patientViewModel.uiState.value is PatientUiState.Initial ||
+                        (patientViewModel.uiState.value is PatientUiState.Success &&
+                                patientViewModel.requests.value.isEmpty())) {
+                        patientViewModel.refreshRequests()
+                    }
+                }
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+        }
+    }
+}
+
+
+
+@Composable
+fun SplashScreen() {
+    Box(modifier = Modifier.fillMaxSize()) {
+        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+    }
+}
+
+
+@Composable
+fun AuthProtectedScreen(
+    requiredRoles: List<UserRole>?,
+    authState: AuthUiState,
+    navController: androidx.navigation.NavController,
+    content: @Composable () -> Unit
+) = ImprovedAuthProtectedScreen(requiredRoles, authState, navController, content)
+
+@Composable
+fun ImprovedAuthProtectedScreen(
+    requiredRoles: List<UserRole>?,
+    authState: AuthUiState,
+    navController: androidx.navigation.NavController,
+    content: @Composable () -> Unit
+) {
+
+    var hasRedirected by remember { mutableStateOf(false) }
+
+    Log.d("AppNavigation", "ImprovedAuthProtectedScreen: authState = $authState, hasRedirected = $hasRedirected")
+    Log.d("AppNavigation", "Required roles: $requiredRoles")
+
+
+    val currentAuthState = authState
+    when (currentAuthState) {
+        is AuthUiState.LoggedIn -> {
+            val user = currentAuthState.user
+            Log.d("AppNavigation", "User logged in - Role: ${user.role}, Required: $requiredRoles")
+
+
+            if (requiredRoles == null || requiredRoles.contains(user.role)) {
+                Log.d("AppNavigation", "Access GRANTED - showing content")
+                hasRedirected = false
+                content()
+            } else {
+                Log.d("AppNavigation", "Access DENIED - redirecting to home screen")
+                if (!hasRedirected) {
+                    LaunchedEffect(Unit) {
+                        hasRedirected = true
+                        Log.d("AppNavigation", "Access denied, redirecting to home screen for role: ${user.role}")
+                        val destination = when (user.role) {
+                            UserRole.PATIENT -> PatientNavGraph.route
+                            UserRole.ADMIN, UserRole.DISPATCHER -> AdminNavGraph.route
+                            UserRole.MEDICAL_STAFF -> Screen.VisitList.route
+                        }
+                        Log.d("AppNavigation", "Redirecting to: $destination")
+                        navController.navigate(destination) {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+        }
+        is AuthUiState.Loading, is AuthUiState.Initial -> {
+            Log.d("AppNavigation", "Auth state is loading/initial - showing progress")
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+        else -> {
+            Log.d("AppNavigation", "User not logged in - redirecting to login")
+            if (!hasRedirected) {
+                LaunchedEffect(Unit) {
+                    hasRedirected = true
+                    Log.d("AppNavigation", "User not logged in, redirecting to login")
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+    }
+}
