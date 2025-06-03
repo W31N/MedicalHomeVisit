@@ -8,7 +8,6 @@ interface AppointmentRequestRepository {
     // Метод для создания заявки пациентом
     suspend fun createRequest(request: AppointmentRequest): Result<AppointmentRequest>
 
-
     // Метод для получения заявки по ID
     suspend fun getRequestById(requestId: String): Result<AppointmentRequest>
 

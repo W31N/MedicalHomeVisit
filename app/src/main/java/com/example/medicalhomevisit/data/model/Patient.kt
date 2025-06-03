@@ -1,12 +1,9 @@
 package com.example.medicalhomevisit.data.model
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
 import java.util.Date
 
-@Entity(tableName = "patients")
 data class Patient(
-    @PrimaryKey val id: String,
+    val id: String,
     val fullName: String,
     val dateOfBirth: Date? = null,
     val age: Int? = null,

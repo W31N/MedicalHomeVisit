@@ -36,7 +36,8 @@ object AppModule { // Используем object для предоставле�
     @Singleton
     fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY // Используйте BuildConfig.DEBUG для включения только в debug
+            level =
+                HttpLoggingInterceptor.Level.BODY // Используйте BuildConfig.DEBUG для включения только в debug
         }
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor) // Сначала ваш AuthInterceptor
@@ -73,7 +74,10 @@ object AppModule { // Используем object для предоставле�
         authApiService: AuthApiService,
         tokenManager: TokenManager
     ): com.example.medicalhomevisit.data.remote.AuthRepository { // Указываем интерфейс
-        return com.example.medicalhomevisit.data.remote.BackendAuthRepository(authApiService, tokenManager) // Возвращаем реализацию
+        return com.example.medicalhomevisit.data.remote.BackendAuthRepository(
+            authApiService,
+            tokenManager
+        ) // Возвращаем реализацию
     }
 
     @Provides
@@ -129,5 +133,35 @@ object AppModule { // Используем object для предоставле�
         authRepository: AuthRepository
     ): VisitRepository {
         return HttpVisitRepository(visitApiService, authRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun providePatientApiService(retrofit: Retrofit): PatientApiService {
+        return retrofit.create(PatientApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun providePatientRepository(
+        patientApiService: PatientApiService,
+        authRepository: AuthRepository
+    ): PatientRepository {
+        return HttpPatientRepository(patientApiService, authRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideProtocolApiService(retrofit: Retrofit): ProtocolApiService {
+        return retrofit.create(ProtocolApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideProtocolRepository(
+        protocolApiService: ProtocolApiService,
+        authRepository: AuthRepository
+    ): ProtocolRepository {
+        return HttpProtocolRepository(protocolApiService, authRepository)
     }
 }

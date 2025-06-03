@@ -310,14 +310,23 @@ fun AppNavigation() {
         composable(
             route = Screen.Protocol.route,
             arguments = listOf(navArgument(Screen.Protocol.ARG_VISIT_ID) { type = NavType.StringType })
-        ) {
+        ) { backStackEntry ->
             ImprovedAuthProtectedScreen(
                 requiredRoles = screenAccessMap[Screen.Protocol.route],
                 authState = authState,
                 navController = navController
             ) {
+                // visitId автоматически передается через SavedStateHandle
                 val viewModel: ProtocolViewModel = hiltViewModel()
-                ProtocolScreen(viewModel, onNavigateBack = {navController.popBackStack()})
+
+                // Если ProtocolScreen ожидает visitId как параметр, получите его из аргументов:
+                val visitId = backStackEntry.arguments?.getString(Screen.Protocol.ARG_VISIT_ID) ?: ""
+
+                ProtocolScreen(
+                    viewModel = viewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                    // visitId больше не нужно передавать в ViewModel - он получит его автоматически
+                )
             }
         }
 

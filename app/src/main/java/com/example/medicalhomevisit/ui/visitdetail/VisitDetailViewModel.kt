@@ -9,10 +9,10 @@ import com.example.medicalhomevisit.data.model.Patient
 import com.example.medicalhomevisit.data.model.RequestStatus
 import com.example.medicalhomevisit.data.model.Visit
 import com.example.medicalhomevisit.data.model.VisitStatus
-import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
-import com.example.medicalhomevisit.domain.repository.PatientRepository
+import com.example.medicalhomevisit.data.remote.AppointmentRequestRepository
+import com.example.medicalhomevisit.data.remote.PatientRepository
+import com.example.medicalhomevisit.data.remote.VisitRepository
 import com.example.medicalhomevisit.domain.repository.ProtocolRepository
-import com.example.medicalhomevisit.domain.repository.VisitRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,15 +24,18 @@ import javax.inject.Inject
 @HiltViewModel
 class VisitDetailViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
-    private val visitId: String,
     private val visitRepository: VisitRepository,
     private val appointmentRequestRepository: AppointmentRequestRepository,
-    private val protocolRepository: ProtocolRepository,
+//    private val protocolRepository: ProtocolRepository,
     private val patientRepository: PatientRepository
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "VisitDetailViewModel"
+    }
+
+    private val visitId: String = checkNotNull(savedStateHandle.get<String>("visitId")) {
+        "visitId is required"
     }
 
     private val _uiState = MutableStateFlow<VisitDetailUiState>(VisitDetailUiState.Loading)
@@ -123,9 +126,14 @@ class VisitDetailViewModel @Inject constructor(
     private fun loadOriginalRequest(requestId: String) {
         viewModelScope.launch {
             try {
-                val originalRequest = appointmentRequestRepository.getRequestById(requestId)
-                _originalRequest.value = originalRequest
-                Log.d(TAG, "Original request loaded: ${originalRequest.id}")
+                val result = appointmentRequestRepository.getRequestById(requestId)
+                if (result.isSuccess) {
+                    val originalRequest = result.getOrNull()
+                    _originalRequest.value = originalRequest
+                    Log.d(TAG, "Original request loaded: ${originalRequest?.id}")
+                } else {
+                    Log.w(TAG, "Could not load original request: ${result.exceptionOrNull()?.message}")
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "Could not load original request: ${e.message}", e)
                 // Не критичная ошибка, продолжаем работу без оригинальной заявки
@@ -151,8 +159,7 @@ class VisitDetailViewModel @Inject constructor(
                 Log.e(TAG, "Error loading patient from repository for ID '$patientId': ${e.message}", e) // <--- ЛОГ
                 // Проверяем кэш
                 try {
-                    val cachedPatients = patientRepository.getCachedPatients()
-                    val cachedPatient = cachedPatients.find { it.id == patientId }
+                    val cachedPatient = patientRepository.getCachedPatientById(patientId)
                     if (cachedPatient != null) {
                         _patientState.value = PatientState.Success(cachedPatient)
                         _isOffline.value = true
@@ -200,14 +207,18 @@ class VisitDetailViewModel @Inject constructor(
                     val requestStatus = mapVisitStatusToRequestStatus(newStatus)
                     Log.d(TAG, "Updating original request status to: $requestStatus")
 
-                    appointmentRequestRepository.updateRequestStatus(
+                    val result = appointmentRequestRepository.updateRequestStatus(
                         currentVisit.originalRequestId,
-                        requestStatus
+                        requestStatus,
+                        null
                     )
 
-                    // Обновляем кэшированную заявку
-                    _originalRequest.value?.let { currentRequest ->
-                        _originalRequest.value = currentRequest.copy(status = requestStatus)
+                    if (result.isSuccess) {
+                        val updatedRequest = result.getOrNull()
+                        _originalRequest.value = updatedRequest
+                        Log.d(TAG, "Original request status updated successfully")
+                    } else {
+                        Log.w(TAG, "Failed to update original request status: ${result.exceptionOrNull()?.message}")
                     }
                 }
 
@@ -298,7 +309,9 @@ class VisitDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 visitRepository.syncVisits()
-                appointmentRequestRepository.syncRequests()
+                // Убираем syncRequests так как его нет в AppointmentRequestRepository
+                // appointmentRequestRepository.syncRequests()
+                patientRepository.syncPatients()
                 _isOffline.value = false
                 loadVisitDetails()
                 Log.d(TAG, "Data synced successfully")

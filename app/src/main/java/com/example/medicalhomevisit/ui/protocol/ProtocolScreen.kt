@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.medicalhomevisit.data.model.Visit
 import java.text.SimpleDateFormat
 import java.util.*
@@ -23,9 +24,10 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProtocolScreen(
-    viewModel: ProtocolViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: ProtocolViewModel = hiltViewModel()
 ) {
+
     val uiState by viewModel.uiState.collectAsState()
     val visitState by viewModel.visitState.collectAsState()
     val protocolData by viewModel.protocolData.collectAsState()
