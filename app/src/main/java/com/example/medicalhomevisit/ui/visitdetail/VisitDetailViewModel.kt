@@ -1,6 +1,7 @@
 package com.example.medicalhomevisit.ui.visitdetail
 
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.medicalhomevisit.data.model.AppointmentRequest
@@ -20,7 +21,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@HiltViewModel
 class VisitDetailViewModel @Inject constructor(
+    private val savedStateHandle: SavedStateHandle,
     private val visitId: String,
     private val visitRepository: VisitRepository,
     private val appointmentRequestRepository: AppointmentRequestRepository,

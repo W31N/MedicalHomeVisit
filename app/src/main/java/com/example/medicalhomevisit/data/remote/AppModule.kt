@@ -113,4 +113,21 @@ object AppModule { // Используем object для предоставле�
     ): AdminRepository { // Убедись, что это твой интерфейс AdminRepository
         return BackendAdminRepository(adminApiService, tokenManager)
     }
+
+    // НОВОЕ: Добавляем VisitApiService
+    @Provides
+    @Singleton
+    fun provideVisitApiService(retrofit: Retrofit): VisitApiService {
+        return retrofit.create(VisitApiService::class.java)
+    }
+
+    // НОВОЕ: Добавляем VisitRepository
+    @Provides
+    @Singleton
+    fun provideVisitRepository(
+        visitApiService: VisitApiService,
+        authRepository: AuthRepository
+    ): VisitRepository {
+        return HttpVisitRepository(visitApiService, authRepository)
+    }
 }

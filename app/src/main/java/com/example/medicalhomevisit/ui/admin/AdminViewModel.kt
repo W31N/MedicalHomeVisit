@@ -24,7 +24,6 @@ class AdminViewModel @Inject constructor(
     private val appointmentRequestRepository: AppointmentRequestRepository,
     private val authRepository: AuthRepository
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow<AdminUiState>(AdminUiState.Initial)
     val uiState: StateFlow<AdminUiState> = _uiState.asStateFlow()
 
@@ -67,7 +66,7 @@ class AdminViewModel @Inject constructor(
                     _uiState.value = if (requests.isEmpty()) {
                         AdminUiState.Empty
                     } else {
-                        AdminUiState.Success // Если есть данные, то Success
+                        AdminUiState.Success
                     }
                     Log.d(TAG, "Active requests loaded: ${requests.size}")
                 } else {
@@ -101,7 +100,7 @@ class AdminViewModel @Inject constructor(
         }
     }
 
-    fun assignRequestToStaff(requestId: String, staffId: String,  assignmentNote: String?) {
+    fun assignRequestToStaff(requestId: String, staffId: String, assignmentNote: String?) {
         Log.d(TAG, "Attempting to assign request $requestId to staff $staffId with note: $assignmentNote")
         val adminUser = _user.value
         if (adminUser == null || (adminUser.role != UserRole.ADMIN && adminUser.role != UserRole.DISPATCHER)) {
@@ -109,6 +108,7 @@ class AdminViewModel @Inject constructor(
             Log.w(TAG, "User ${adminUser?.email} without ADMIN/DISPATCHER role tried to assign request.")
             return
         }
+
         viewModelScope.launch {
             _uiState.value = AdminUiState.Loading
             try {
@@ -119,9 +119,10 @@ class AdminViewModel @Inject constructor(
                 )
                 if (result.isSuccess) {
                     Log.d(TAG, "Request $requestId assigned successfully to staff $staffId.")
-                    val updatedRequests = _activeRequests.value.filter { it.id != requestId }
-                    _activeRequests.value = updatedRequests
                     _uiState.value = AdminUiState.RequestAssigned
+
+                    refreshActiveRequestsAfterAssignment()
+
                 } else {
                     val errorMsg = result.exceptionOrNull()?.message ?: "Ошибка назначения заявки"
                     Log.e(TAG, "Error assigning request: $errorMsg", result.exceptionOrNull())
@@ -130,6 +131,23 @@ class AdminViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Exception assigning request", e)
                 _uiState.value = AdminUiState.Error(e.message ?: "Непредвиденная ошибка назначения заявки")
+            }
+        }
+    }
+
+    private fun refreshActiveRequestsAfterAssignment() {
+        viewModelScope.launch {
+            try {
+                val result = appointmentRequestRepository.getAllActiveRequests()
+                if (result.isSuccess) {
+                    val requests = result.getOrNull() ?: emptyList()
+                    _activeRequests.value = requests
+                    Log.d(TAG, "Active requests refreshed after assignment: ${requests.size}")
+                } else {
+                    Log.e(TAG, "Error refreshing active requests after assignment")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception refreshing active requests after assignment", e)
             }
         }
     }
@@ -149,7 +167,6 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = AdminUiState.Loading
             try {
-                // Предполагаем, что adminRepository.registerNewPatient возвращает Result<User>
                 val result = adminRepository.registerNewPatient(
                     email = email,
                     password = password,
@@ -184,10 +201,18 @@ class AdminViewModel @Inject constructor(
         loadMedicalStaff()
     }
 
+    fun consumeUiEvent() {
+        if (_uiState.value is AdminUiState.RequestAssigned || _uiState.value is AdminUiState.PatientCreated) {
+            _uiState.value = if (_activeRequests.value.isNotEmpty()) AdminUiState.Success else AdminUiState.Empty
+        }
+    }
+
     companion object {
         private const val TAG = "AdminViewModel"
     }
 }
+
+
 
 sealed class AdminUiState {
     object Initial : AdminUiState()

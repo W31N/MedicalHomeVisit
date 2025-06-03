@@ -5,9 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.medicalhomevisit.data.model.Visit
 import com.example.medicalhomevisit.data.model.VisitStatus
-import com.example.medicalhomevisit.data.repository.FirebaseAuthRepository
-//import com.example.medicalhomevisit.domain.repository.AuthRepository
-import com.example.medicalhomevisit.domain.repository.VisitRepository
+import com.example.medicalhomevisit.data.remote.AuthRepository
+import com.example.medicalhomevisit.data.remote.VisitRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,9 +18,10 @@ import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
 
+@HiltViewModel
 class VisitListViewModel @Inject constructor(
     private val visitRepository: VisitRepository,
-    private val authRepository: FirebaseAuthRepository // Добавляем AuthRepository
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     companion object {
@@ -51,13 +51,17 @@ class VisitListViewModel @Inject constructor(
     private var currentUserId: String? = null
 
     init {
-        // Сначала получаем текущего пользователя, потом загружаем визиты
+        // Получаем текущего пользователя и загружаем визиты
         viewModelScope.launch {
             authRepository.currentUser.collectLatest { user ->
                 currentUserId = user?.id
                 if (currentUserId != null) {
                     loadVisits()
-                    observeVisits()
+                    // В HTTP режиме нет постоянного наблюдения,
+                    // поэтому убираем observeVisits()
+                } else {
+                    _allVisits.value = emptyList()
+                    _uiState.value = VisitListUiState.Empty
                 }
             }
         }
@@ -90,26 +94,21 @@ class VisitListViewModel @Inject constructor(
             _uiState.value = VisitListUiState.Loading
 
             try {
-                // Загружаем только визиты назначенные текущему врачу
                 val visits = visitRepository.getVisitsForStaff(userId)
 
-                // Сохраняем визиты пользователя
                 _allVisits.value = visits
 
-                // Применяем текущие фильтры
                 applyFilters()
 
-                // Сброс флага офлайн-режима
+
                 _isOffline.value = false
 
                 Log.d(TAG, "Loaded ${visits.size} visits for staff $userId")
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading visits: ${e.message}", e)
 
-                // Пробуем загрузить из кэша
                 try {
                     val cachedVisits = visitRepository.getCachedVisits()
-                        .filter { it.assignedStaffId == userId } // Фильтруем кэш по пользователю
 
                     if (cachedVisits.isNotEmpty()) {
                         _allVisits.value = cachedVisits
@@ -127,18 +126,15 @@ class VisitListViewModel @Inject constructor(
 
     // Синхронизация данных (для использования при восстановлении подключения)
     fun syncVisits() {
-        val userId = currentUserId ?: return
-
         viewModelScope.launch {
             try {
                 val result = visitRepository.syncVisits()
                 if (result.isSuccess) {
                     val allVisits = result.getOrNull() ?: emptyList()
-                    // Фильтруем только визиты текущего пользователя
-                    val userVisits = allVisits.filter { it.assignedStaffId == userId }
-                    _allVisits.value = userVisits
+                    _allVisits.value = allVisits
                     applyFilters()
                     _isOffline.value = false
+                    Log.d(TAG, "Visits synced successfully")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error syncing visits: ${e.message}", e)
@@ -150,15 +146,11 @@ class VisitListViewModel @Inject constructor(
     fun updateSelectedDate(date: Date) {
         _filterParams.update { it.copy(selectedDate = date) }
 
-        val userId = currentUserId ?: return
-
-        // Загружаем визиты для выбранной даты и фильтруем по пользователю
+        // Загружаем визиты для выбранной даты
         viewModelScope.launch {
             try {
-                val allVisits = visitRepository.getVisitsForDate(date)
-                // Фильтруем только визиты текущего пользователя
-                val userVisits = allVisits.filter { it.assignedStaffId == userId }
-                _allVisits.value = userVisits
+                val visits = visitRepository.getVisitsForDate(date)
+                _allVisits.value = visits
                 applyFilters()
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading visits for date: ${e.message}", e)
@@ -231,7 +223,7 @@ class VisitListViewModel @Inject constructor(
                     applyFilters()
                 }
 
-                // Выполняем обновление в репозитории
+                // Выполняем обновление на сервере
                 visitRepository.updateVisitStatus(visitId, newStatus)
 
                 Log.d(TAG, "Visit status updated: $visitId -> $newStatus")
@@ -241,6 +233,36 @@ class VisitListViewModel @Inject constructor(
                 loadVisits()
             }
         }
+    }
+
+    // Добавим новые методы для работы с визитами
+    fun updateVisitNotes(visitId: String, notes: String) {
+        viewModelScope.launch {
+            try {
+                visitRepository.updateVisitNotes(visitId, notes)
+
+                // Обновляем локальный кэш
+                val currentVisits = _allVisits.value.toMutableList()
+                val index = currentVisits.indexOfFirst { it.id == visitId }
+                if (index != -1) {
+                    currentVisits[index] = currentVisits[index].copy(notes = notes)
+                    _allVisits.value = currentVisits
+                    applyFilters()
+                }
+
+                Log.d(TAG, "Visit notes updated: $visitId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating visit notes: ${e.message}", e)
+            }
+        }
+    }
+
+    fun startVisit(visitId: String) {
+        updateVisitStatus(visitId, VisitStatus.IN_PROGRESS)
+    }
+
+    fun completeVisit(visitId: String) {
+        updateVisitStatus(visitId, VisitStatus.COMPLETED)
     }
 }
 

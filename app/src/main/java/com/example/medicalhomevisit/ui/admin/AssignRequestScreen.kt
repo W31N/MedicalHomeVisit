@@ -39,14 +39,14 @@
 
         LaunchedEffect(uiState) {
             if (uiState is AdminUiState.RequestAssigned) {
-                kotlinx.coroutines.delay(500)
                 onRequestAssigned()
+                viewModel.consumeUiEvent()
             }
         }
 
-        LaunchedEffect(Unit) {
-            viewModel.refreshData()
-        }
+//        LaunchedEffect(Unit) {
+//            viewModel.refreshData()
+//        }
 
         Scaffold(
             topBar = {
@@ -213,8 +213,7 @@
 
                 Button(
                     onClick = {
-                        selectedStaff?.let { staff -> // Безопасный вызов
-                            // Убедись, что staff.id здесь - это medicalPersonId
+                        selectedStaff?.let { staff ->
                             viewModel.assignRequestToStaff(
                                 requestId = request.id,
                                 staffId = staff.medicalPersonId, // Это должен быть ID из MedicalPersonDto.medicalPersonId
