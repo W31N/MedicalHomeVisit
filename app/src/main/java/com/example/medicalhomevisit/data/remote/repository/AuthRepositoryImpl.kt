@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
-class BackendAuthRepository(
+class AuthRepositoryImpl(
     private val authApiService: AuthApiService,
     private val tokenManager: TokenManager
 ) : AuthRepository {
@@ -143,8 +143,6 @@ class BackendAuthRepository(
     }
 }
 
-// Функция-расширение для маппинга DTO в доменную модель User
-// Ее лучше вынести в отдельный файл-маппер или в компаньон объекта User
 fun UserDto.toDomainUser(): User {
     return User(
         id = this.id,

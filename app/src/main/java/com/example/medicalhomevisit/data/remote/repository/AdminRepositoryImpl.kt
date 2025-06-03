@@ -12,7 +12,7 @@ import kotlinx.coroutines.withContext
 import java.util.Date
 import javax.inject.Inject
 
-class BackendAdminRepository @Inject constructor(
+class AdminRepositoryImpl @Inject constructor(
     private val adminApiService: AdminApiService,
     private val tokenManager: TokenManager
 ) : AdminRepository {

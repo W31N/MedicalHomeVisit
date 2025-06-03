@@ -26,12 +26,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.medicalhomevisit.domain.model.UserRole
-import com.example.medicalhomevisit.presentation.ui.*
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.navigation
-import com.example.medicalhomevisit.presentation.ui.ProfileScreen
+import com.example.medicalhomevisit.presentation.ui.profile.ProfileScreen
 import com.example.medicalhomevisit.presentation.ui.admin.AdminDashboardScreen
 import com.example.medicalhomevisit.presentation.ui.admin.AssignRequestScreen
 import com.example.medicalhomevisit.presentation.ui.admin.ManageRequestsScreen

@@ -15,7 +15,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class HttpPatientRepository @Inject constructor(
+class PatientRepositoryImpl @Inject constructor(
     private val patientApiService: PatientApiService,
     private val authRepository: AuthRepository
 ) : PatientRepository {

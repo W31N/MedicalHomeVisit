@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
 import java.util.Date
 import javax.inject.Inject
 
-class   BackendAppointmentRequestRepository @Inject constructor(
+class   AppointmentRequestRepositoryImpl @Inject constructor(
     private val apiService: AppointmentApiService,
     private val tokenManager: TokenManager,
     private val authRepository: AuthRepository

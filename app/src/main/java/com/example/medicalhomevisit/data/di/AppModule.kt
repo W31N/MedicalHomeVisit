@@ -5,16 +5,16 @@ import com.example.medicalhomevisit.data.remote.api.AdminApiService
 import com.example.medicalhomevisit.data.remote.api.AppointmentApiService
 import com.example.medicalhomevisit.data.remote.api.AuthApiService
 import com.example.medicalhomevisit.data.remote.network.AuthInterceptor
-import com.example.medicalhomevisit.data.remote.repository.BackendAdminRepository
-import com.example.medicalhomevisit.data.remote.repository.BackendAppointmentRequestRepository
-import com.example.medicalhomevisit.data.remote.repository.BackendAuthRepository
-import com.example.medicalhomevisit.data.remote.repository.HttpPatientRepository
-import com.example.medicalhomevisit.data.remote.repository.HttpProtocolRepository
-import com.example.medicalhomevisit.data.remote.repository.HttpVisitRepository
+import com.example.medicalhomevisit.data.remote.repository.AdminRepositoryImpl
+import com.example.medicalhomevisit.data.remote.repository.AppointmentRequestRepositoryImpl
+import com.example.medicalhomevisit.data.remote.repository.PatientRepositoryImpl
+import com.example.medicalhomevisit.data.remote.repository.ProtocolRepositoryImpl
+import com.example.medicalhomevisit.data.remote.repository.VisitRepositoryImpl
 import com.example.medicalhomevisit.data.remote.api.PatientApiService
 import com.example.medicalhomevisit.data.remote.api.ProtocolApiService
 import com.example.medicalhomevisit.data.remote.network.TokenManager
 import com.example.medicalhomevisit.data.remote.api.VisitApiService
+import com.example.medicalhomevisit.data.remote.repository.AuthRepositoryImpl
 import com.example.medicalhomevisit.domain.repository.AdminRepository
 import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
 import com.example.medicalhomevisit.domain.repository.AuthRepository
@@ -94,7 +94,7 @@ object AppModule { // Используем object для предоставле�
         authApiService: AuthApiService,
         tokenManager: TokenManager
     ): AuthRepository { // Указываем интерфейс
-        return BackendAuthRepository(
+        return AuthRepositoryImpl(
             authApiService,
             tokenManager
         ) // Возвращаем реализацию
@@ -115,7 +115,7 @@ object AppModule { // Используем object для предоставле�
         authRepository: AuthRepository // Добавляем AuthRepository как параметр
         // Используй конкретный тип интерфейса, который ты указал для AuthRepository
     ): AppointmentRequestRepository { // Это тип возвращаемого интерфейса
-        return BackendAppointmentRequestRepository(
+        return AppointmentRequestRepositoryImpl(
             appointmentApiService,
             tokenManager, // Передаем его здесь
             authRepository  // Передаем его здесь
@@ -135,7 +135,7 @@ object AppModule { // Используем object для предоставле�
         adminApiService: AdminApiService,
         tokenManager: TokenManager // Если нужен в BackendAdminRepository
     ): AdminRepository { // Убедись, что это твой интерфейс AdminRepository
-        return BackendAdminRepository(adminApiService, tokenManager)
+        return AdminRepositoryImpl(adminApiService, tokenManager)
     }
 
     // НОВОЕ: Добавляем VisitApiService
@@ -152,7 +152,7 @@ object AppModule { // Используем object для предоставле�
         visitApiService: VisitApiService,
         authRepository: AuthRepository
     ): VisitRepository {
-        return HttpVisitRepository(visitApiService, authRepository)
+        return VisitRepositoryImpl(visitApiService, authRepository)
     }
 
     @Provides
@@ -167,7 +167,7 @@ object AppModule { // Используем object для предоставле�
         patientApiService: PatientApiService,
         authRepository: AuthRepository
     ): PatientRepository {
-        return HttpPatientRepository(patientApiService, authRepository)
+        return PatientRepositoryImpl(patientApiService, authRepository)
     }
 
     @Provides
@@ -182,6 +182,6 @@ object AppModule { // Используем object для предоставле�
         protocolApiService: ProtocolApiService,
         authRepository: AuthRepository
     ): ProtocolRepository {
-        return HttpProtocolRepository(protocolApiService, authRepository)
+        return ProtocolRepositoryImpl(protocolApiService, authRepository)
     }
 }

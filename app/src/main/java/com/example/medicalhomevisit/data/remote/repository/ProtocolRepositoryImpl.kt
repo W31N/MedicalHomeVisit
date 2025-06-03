@@ -12,7 +12,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class HttpProtocolRepository @Inject constructor(
+class ProtocolRepositoryImpl @Inject constructor(
     private val apiService: ProtocolApiService,
     private val authRepository: AuthRepository
 ) : ProtocolRepository {

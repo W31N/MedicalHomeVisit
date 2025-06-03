@@ -18,7 +18,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class HttpVisitRepository @Inject constructor(
+class VisitRepositoryImpl @Inject constructor(
     private val apiService: VisitApiService,
     private val authRepository: AuthRepository
 ) : VisitRepository {
