@@ -9,8 +9,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.medicalhomevisit.domain.model.UserRole
-import com.example.medicalhomevisit.ui.auth.AuthUiState
-import com.example.medicalhomevisit.ui.auth.AuthViewModel
+import com.example.medicalhomevisit.presentation.viewmodel.AuthUiState
+import com.example.medicalhomevisit.presentation.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

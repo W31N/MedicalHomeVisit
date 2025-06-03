@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.example.medicalhomevisit.domain.model.Visit
 import com.example.medicalhomevisit.presentation.viewmodel.VisitListUiState
 import com.example.medicalhomevisit.presentation.viewmodel.VisitListViewModel
-import com.example.medicalhomevisit.ui.components.*
+import com.example.medicalhomevisit.presentation.ui.components.*
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)

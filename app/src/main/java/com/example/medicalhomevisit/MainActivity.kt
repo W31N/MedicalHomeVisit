@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.example.medicalhomevisit.ui.AppNavigation
-import com.example.medicalhomevisit.ui.theme.MedicalHomeVisitTheme
+import com.example.medicalhomevisit.presentation.navigation.AppNavigation
+import com.example.medicalhomevisit.presentation.theme.MedicalHomeVisitTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

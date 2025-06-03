@@ -25,7 +25,7 @@ import com.example.medicalhomevisit.domain.model.VisitStatus
 import com.example.medicalhomevisit.presentation.viewmodel.PatientState
 import com.example.medicalhomevisit.presentation.viewmodel.VisitDetailUiState
 import com.example.medicalhomevisit.presentation.viewmodel.VisitDetailViewModel
-import com.example.medicalhomevisit.ui.components.StatusChip
+import com.example.medicalhomevisit.presentation.ui.components.StatusChip
 import java.text.SimpleDateFormat
 import java.util.*
 

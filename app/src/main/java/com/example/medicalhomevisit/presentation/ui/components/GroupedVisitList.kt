@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.medicalhomevisit.domain.model.Visit
 import com.example.medicalhomevisit.domain.model.VisitStatus
-import com.example.medicalhomevisit.ui.visitlist.GroupingType
+import com.example.medicalhomevisit.presentation.viewmodel.GroupingType
 import java.util.*
 
 @Composable
