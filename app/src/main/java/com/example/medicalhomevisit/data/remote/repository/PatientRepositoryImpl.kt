@@ -5,6 +5,8 @@ import com.example.medicalhomevisit.data.remote.api.PatientApiService
 import com.example.medicalhomevisit.domain.model.Patient
 import com.example.medicalhomevisit.domain.model.Gender
 import com.example.medicalhomevisit.data.remote.dto.PatientDto
+import com.example.medicalhomevisit.data.remote.dto.PatientProfileUpdateDto
+import com.example.medicalhomevisit.domain.model.PatientProfileUpdate
 import com.example.medicalhomevisit.domain.repository.AuthRepository
 import com.example.medicalhomevisit.domain.repository.PatientRepository
 import kotlinx.coroutines.flow.Flow
@@ -114,7 +116,61 @@ class PatientRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getMyProfile(): Patient {
+        return try {
+            Log.d(TAG, "Getting my patient profile")
+            val response = patientApiService.getMyProfile()
 
+            if (response.isSuccessful) {
+                val patientDto = response.body() ?: throw Exception("Профиль пациента не найден")
+                val patient = convertDtoToPatient(patientDto)
+
+                Log.d(TAG, "Successfully loaded my patient profile")
+                patient
+            } else {
+                Log.e(TAG, "Failed to load my profile: ${response.code()} ${response.message()}")
+                throw Exception("Ошибка загрузки профиля: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading my patient profile", e)
+            throw e
+        }
+    }
+
+    override suspend fun updateMyProfile(profileUpdate: PatientProfileUpdate): Patient {
+        return try {
+            Log.d(TAG, "Updating my patient profile")
+
+            val dto = PatientProfileUpdateDto(
+                dateOfBirth = profileUpdate.dateOfBirth,
+                gender = profileUpdate.gender?.name,
+                address = profileUpdate.address,
+                phoneNumber = profileUpdate.phoneNumber,
+                policyNumber = profileUpdate.policyNumber,
+                allergies = profileUpdate.allergies,
+                chronicConditions = profileUpdate.chronicConditions
+            )
+
+            val response = patientApiService.updateMyProfile(dto)
+
+            if (response.isSuccessful) {
+                val updatedPatientDto = response.body() ?: throw Exception("Ошибка обновления профиля")
+                val updatedPatient = convertDtoToPatient(updatedPatientDto)
+
+                // Обновляем кэш
+                updatePatientInCache(updatedPatient)
+
+                Log.d(TAG, "Successfully updated my patient profile")
+                updatedPatient
+            } else {
+                Log.e(TAG, "Failed to update profile: ${response.code()} ${response.message()}")
+                throw Exception("Ошибка обновления профиля: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating my patient profile", e)
+            throw e
+        }
+    }
 
     override fun observePatients(): Flow<List<Patient>> {
         return _patientsFlow.asStateFlow()

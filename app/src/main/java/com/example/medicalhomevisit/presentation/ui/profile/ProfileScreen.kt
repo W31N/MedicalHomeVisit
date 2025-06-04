@@ -8,7 +8,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.example.medicalhomevisit.domain.model.UserRole
+import com.example.medicalhomevisit.presentation.navigation.Screen
 import com.example.medicalhomevisit.presentation.viewmodel.AuthUiState
 import com.example.medicalhomevisit.presentation.viewmodel.AuthViewModel
 
@@ -16,6 +18,7 @@ import com.example.medicalhomevisit.presentation.viewmodel.AuthViewModel
 @Composable
 fun ProfileScreen(
     viewModel: AuthViewModel,
+    navController: NavController,  // ← ДОБАВИТЬ
     onNavigateBack: () -> Unit,
     onSignOut: () -> Unit
 ) {
@@ -116,6 +119,24 @@ fun ProfileScreen(
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
+                    }
+                }
+
+                // Кнопка редактирования профиля для пациентов
+                if (user.role == UserRole.PATIENT) {
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = { navController.navigate(Screen.PatientProfile.route) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.IconSize)
+                        )
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text("Редактировать профиль")
                     }
                 }
 

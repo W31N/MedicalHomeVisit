@@ -1,6 +1,9 @@
 package com.example.medicalhomevisit.data.di
 
 import android.content.Context
+import androidx.room.Room
+import com.example.medicalhomevisit.data.local.AppDatabase
+import com.example.medicalhomevisit.data.local.dao.VisitDao
 import com.example.medicalhomevisit.data.remote.api.AdminApiService
 import com.example.medicalhomevisit.data.remote.api.AppointmentApiService
 import com.example.medicalhomevisit.data.remote.api.AuthApiService
@@ -15,6 +18,7 @@ import com.example.medicalhomevisit.data.remote.api.ProtocolApiService
 import com.example.medicalhomevisit.data.remote.network.TokenManager
 import com.example.medicalhomevisit.data.remote.api.VisitApiService
 import com.example.medicalhomevisit.data.remote.repository.AuthRepositoryImpl
+import com.example.medicalhomevisit.data.repository.SimpleOfflineVisitRepository
 import com.example.medicalhomevisit.domain.repository.AdminRepository
 import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
 import com.example.medicalhomevisit.domain.repository.AuthRepository
@@ -35,13 +39,33 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
-@InstallIn(SingletonComponent::class) // Зависимости будут жить, пока живо приложение
-object AppModule { // Используем object для предоставления статических методов @Provides
+@InstallIn(SingletonComponent::class)
+object AppModule {
 
-    private const val BASE_URL = "http://10.0.2.2:8080/"
+    private const val BASE_URL = "http://192.168.0.102:8080/"
+//    private const val BASE_URL = "http://10.0.2.2:8080/"
+
+    // ===== ROOM DATABASE =====
 
     @Provides
-    @Singleton // Гарантирует, что будет создан только один экземпляр TokenManager
+    @Singleton
+    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
+        return Room.databaseBuilder(
+            context.applicationContext,
+            AppDatabase::class.java,
+            "medical_home_visit_database"
+        )
+            .fallbackToDestructiveMigration() // Для разработки - удаляет БД при изменении схемы
+            .build()
+    }
+
+    @Provides
+    fun provideVisitDao(database: AppDatabase): VisitDao = database.visitDao()
+
+    // ===== NETWORKING =====
+
+    @Provides
+    @Singleton
     fun provideTokenManager(@ApplicationContext context: Context): TokenManager {
         return TokenManager(context)
     }
@@ -57,11 +81,11 @@ object AppModule { // Используем object для предоставле�
     fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level =
-                HttpLoggingInterceptor.Level.BODY // Используйте BuildConfig.DEBUG для включения только в debug
+                HttpLoggingInterceptor.Level.BODY
         }
         return OkHttpClient.Builder()
-            .addInterceptor(authInterceptor) // Сначала ваш AuthInterceptor
-            .addInterceptor(loggingInterceptor) // Потом логирующий
+            .addInterceptor(authInterceptor)
+            .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -72,7 +96,7 @@ object AppModule { // Используем object для предоставле�
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         val gson = GsonBuilder()
-            .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'") // Настройте, если нужно
+            .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
             .create()
 
         return Retrofit.Builder()
@@ -82,6 +106,8 @@ object AppModule { // Используем object для предоставле�
             .build()
     }
 
+    // ===== API SERVICES =====
+
     @Provides
     @Singleton
     fun provideAuthApiService(retrofit: Retrofit): AuthApiService {
@@ -90,22 +116,47 @@ object AppModule { // Используем object для предоставле�
 
     @Provides
     @Singleton
-    fun provideAuthRepository(
-        authApiService: AuthApiService,
-        tokenManager: TokenManager
-    ): AuthRepository { // Указываем интерфейс
-        return AuthRepositoryImpl(
-            authApiService,
-            tokenManager
-        ) // Возвращаем реализацию
-    }
-
-    @Provides
-    @Singleton
     fun provideAppointmentApiService(retrofit: Retrofit): AppointmentApiService {
         return retrofit.create(AppointmentApiService::class.java)
     }
 
+    @Provides
+    @Singleton
+    fun provideAdminApiService(retrofit: Retrofit): AdminApiService {
+        return retrofit.create(AdminApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideVisitApiService(retrofit: Retrofit): VisitApiService {
+        return retrofit.create(VisitApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun providePatientApiService(retrofit: Retrofit): PatientApiService {
+        return retrofit.create(PatientApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideProtocolApiService(retrofit: Retrofit): ProtocolApiService {
+        return retrofit.create(ProtocolApiService::class.java)
+    }
+
+    // ===== REPOSITORIES =====
+
+    @Provides
+    @Singleton
+    fun provideAuthRepository(
+        authApiService: AuthApiService,
+        tokenManager: TokenManager
+    ): AuthRepository {
+        return AuthRepositoryImpl(
+            authApiService,
+            tokenManager
+        )
+    }
 
     @Provides
     @Singleton
@@ -122,13 +173,6 @@ object AppModule { // Используем object для предоставле�
         )
     }
 
-
-    @Provides
-    @Singleton
-    fun provideAdminApiService(retrofit: Retrofit): AdminApiService {
-        return retrofit.create(AdminApiService::class.java)
-    }
-
     @Provides
     @Singleton
     fun provideAdminRepository(
@@ -138,27 +182,23 @@ object AppModule { // Используем object для предоставле�
         return AdminRepositoryImpl(adminApiService, tokenManager)
     }
 
-    // НОВОЕ: Добавляем VisitApiService
-    @Provides
-    @Singleton
-    fun provideVisitApiService(retrofit: Retrofit): VisitApiService {
-        return retrofit.create(VisitApiService::class.java)
-    }
+//    @Provides
+//    @Singleton
+//    fun provideVisitRepository(
+//        visitApiService: VisitApiService,
+//        authRepository: AuthRepository
+//    ): VisitRepository {
+//        return VisitRepositoryImpl(visitApiService, authRepository)
+//    }
 
-    // НОВОЕ: Добавляем VisitRepository
     @Provides
     @Singleton
     fun provideVisitRepository(
+        visitDao: VisitDao,
         visitApiService: VisitApiService,
         authRepository: AuthRepository
     ): VisitRepository {
-        return VisitRepositoryImpl(visitApiService, authRepository)
-    }
-
-    @Provides
-    @Singleton
-    fun providePatientApiService(retrofit: Retrofit): PatientApiService {
-        return retrofit.create(PatientApiService::class.java)
+        return SimpleOfflineVisitRepository(visitDao, visitApiService, authRepository)
     }
 
     @Provides
@@ -170,11 +210,7 @@ object AppModule { // Используем object для предоставле�
         return PatientRepositoryImpl(patientApiService, authRepository)
     }
 
-    @Provides
-    @Singleton
-    fun provideProtocolApiService(retrofit: Retrofit): ProtocolApiService {
-        return retrofit.create(ProtocolApiService::class.java)
-    }
+
 
     @Provides
     @Singleton

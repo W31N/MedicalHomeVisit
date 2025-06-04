@@ -1,6 +1,7 @@
 package com.example.medicalhomevisit.domain.repository
 
 import com.example.medicalhomevisit.domain.model.Patient
+import com.example.medicalhomevisit.domain.model.PatientProfileUpdate
 import kotlinx.coroutines.flow.Flow
 
 interface PatientRepository {
@@ -34,4 +35,14 @@ interface PatientRepository {
     suspend fun getCachedPatients(): List<Patient>
     suspend fun getCachedPatientById(patientId: String): Patient?
     suspend fun syncPatients(): Result<List<Patient>>
+
+    /**
+     * Получить профиль текущего пациента
+     */
+    suspend fun getMyProfile(): Patient
+
+    /**
+     * Обновить профиль текущего пациента
+     */
+    suspend fun updateMyProfile(profileUpdate: PatientProfileUpdate): Patient
 }

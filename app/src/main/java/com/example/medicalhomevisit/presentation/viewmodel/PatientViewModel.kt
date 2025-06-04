@@ -7,7 +7,6 @@ import com.example.medicalhomevisit.domain.model.AppointmentRequest
 import com.example.medicalhomevisit.domain.model.RequestStatus
 import com.example.medicalhomevisit.domain.model.RequestType
 import com.example.medicalhomevisit.domain.model.User
-// Убедись, что эти импорты указывают на правильные интерфейсы
 import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
 import com.example.medicalhomevisit.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel

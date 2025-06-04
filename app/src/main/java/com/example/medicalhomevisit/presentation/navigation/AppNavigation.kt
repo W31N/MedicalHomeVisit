@@ -38,6 +38,7 @@ import com.example.medicalhomevisit.presentation.ui.admin.RegisterPatientScreen
 import com.example.medicalhomevisit.presentation.ui.auth.LoginScreen
 import com.example.medicalhomevisit.presentation.ui.auth.SignUpScreen
 import com.example.medicalhomevisit.presentation.ui.patient.CreateRequestScreen
+import com.example.medicalhomevisit.presentation.ui.patient.PatientProfileScreen
 import com.example.medicalhomevisit.presentation.ui.patient.PatientRequestsScreen
 import com.example.medicalhomevisit.presentation.ui.patient.RequestDetailsScreen
 import com.example.medicalhomevisit.presentation.ui.protocol.ProtocolScreen
@@ -46,6 +47,7 @@ import com.example.medicalhomevisit.presentation.ui.visitlist.VisitListScreen
 import com.example.medicalhomevisit.presentation.viewmodel.AdminViewModel
 import com.example.medicalhomevisit.presentation.viewmodel.AuthUiState
 import com.example.medicalhomevisit.presentation.viewmodel.AuthViewModel
+import com.example.medicalhomevisit.presentation.viewmodel.PatientProfileViewModel
 import com.example.medicalhomevisit.presentation.viewmodel.PatientUiState
 import com.example.medicalhomevisit.presentation.viewmodel.PatientViewModel
 import com.example.medicalhomevisit.presentation.viewmodel.ProtocolViewModel
@@ -61,6 +63,7 @@ object AdminNavGraph {
 }
 
 sealed class Screen(val route: String) {
+    object PatientProfile : Screen("patientProfile")
     object SplashScreen : Screen("splash_screen")
     object Login : Screen("login")
     object SignUp : Screen("signup")
@@ -340,6 +343,7 @@ fun AppNavigation() {
             ) {
                 ProfileScreen(
                     viewModel = authViewModel,
+                    navController = navController,  // ← ДОБАВИТЬ
                     onNavigateBack = { navController.popBackStack() },
                     onSignOut = {
                         navController.navigate(Screen.Login.route) {
@@ -508,6 +512,19 @@ fun NavGraphBuilder.patientGraph(
                     navController.navigate(Screen.RequestDetails.createRoute(requestId))
                 },
                 onProfileClick = { navController.navigate(Screen.Profile.route) }
+            )
+        }
+
+        // ДОБАВИТЬ в patient graph (в функции patientGraph):
+        composable(Screen.PatientProfile.route) { navBackStackEntry ->
+            val patientProfileViewModel: PatientProfileViewModel = hiltViewModel(
+                remember(navBackStackEntry) {
+                    navController.getBackStackEntry(PatientNavGraph.route)
+                }
+            )
+            PatientProfileScreen(
+                viewModel = patientProfileViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
