@@ -43,8 +43,8 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    private const val BASE_URL = "http://192.168.0.102:8080/"
-//    private const val BASE_URL = "http://10.0.2.2:8080/"
+//    private const val BASE_URL = "http://192.168.0.102:8080/"
+    private const val BASE_URL = "http://10.0.2.2:8080/"
 
     // ===== ROOM DATABASE =====
 
@@ -204,9 +204,9 @@ object AppModule {
         visitDao: VisitDao,
         visitApiService: VisitApiService,
         authRepository: AuthRepository,
-        syncManager: SyncManager  // ← Добавить этот параметр
+        syncManager: SyncManager
     ): VisitRepository {
-        return SimpleOfflineVisitRepository(visitDao, visitApiService, authRepository, syncManager)  // ← И передать его здесь
+        return SimpleOfflineVisitRepository(visitDao, visitApiService, authRepository, syncManager)
     }
 
     @Provides
@@ -217,8 +217,6 @@ object AppModule {
     ): PatientRepository {
         return PatientRepositoryImpl(patientApiService, authRepository)
     }
-
-
 
     @Provides
     @Singleton

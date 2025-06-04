@@ -5,6 +5,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
@@ -15,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.medicalhomevisit.domain.model.Visit
@@ -197,6 +200,99 @@ fun VisitListScreen(
                     )
                 }
             }
+
+            // Компонент для тестирования офлайн режима (только в debug режиме)
+            OfflineTestComponent(
+                viewModel = viewModel,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+            )
+        }
+    }
+}
+
+// Компонент для тестирования офлайн режима
+@Composable
+fun OfflineTestComponent(
+    viewModel: VisitListViewModel,
+    modifier: Modifier = Modifier
+) {
+    var showTestPanel by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        // Тестовая панель
+        AnimatedVisibility(
+            visible = showTestPanel,
+            modifier = Modifier.align(Alignment.BottomEnd)
+        ) {
+            Card(
+                modifier = Modifier
+                    .widthIn(min = 280.dp, max = 320.dp)
+                    .offset(x = (-48).dp, y = (-48).dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "🧪 OFFLINE TEST PANEL",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.getSyncStats() },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(4.dp)
+                        ) {
+                            Text("Stats", style = MaterialTheme.typography.bodySmall)
+                        }
+
+                        Button(
+                            onClick = { viewModel.checkSyncStatus() },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(4.dp)
+                        ) {
+                            Text("Check", style = MaterialTheme.typography.bodySmall)
+                        }
+
+                        Button(
+                            onClick = { viewModel.syncVisits() },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(4.dp)
+                        ) {
+                            Text("Sync", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+
+                    Text(
+                        "Проверьте логи с тегом 'VisitListViewModel'",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
+
+        // Кнопка для показа/скрытия панели тестирования
+        FloatingActionButton(
+            onClick = { showTestPanel = !showTestPanel },
+            modifier = Modifier.size(40.dp),
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        ) {
+            Icon(
+                if (showTestPanel) Icons.Default.Close else Icons.Default.BugReport,
+                contentDescription = "Test Panel",
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

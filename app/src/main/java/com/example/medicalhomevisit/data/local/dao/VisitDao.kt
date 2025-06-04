@@ -30,7 +30,7 @@ interface VisitDao {
     @Delete
     suspend fun deleteVisit(visit: VisitEntity)
 
-    // 🔄 МЕТОДЫ ДЛЯ СИНХРОНИЗАЦИИ (добавляем недостающие!)
+    // 🔄 МЕТОДЫ ДЛЯ СИНХРОНИЗАЦИИ (ИСПРАВЛЕНО!)
     @Query("SELECT * FROM visits WHERE isSynced = 0 ORDER BY updatedAt ASC")
     suspend fun getUnsyncedVisits(): List<VisitEntity>
 
@@ -40,11 +40,23 @@ interface VisitDao {
     @Query("UPDATE visits SET lastSyncAttempt = :timestamp WHERE id = :visitId")
     suspend fun updateLastSyncAttempt(visitId: String, timestamp: Date)
 
+    // ❌ БЫЛО НЕПРАВИЛЬНО - Room не поддерживает значения по умолчанию!
+    // ✅ ИСПРАВЛЕНО - передаем время явно:
+    suspend fun updateVisitStatus(visitId: String, status: String) {
+        val now = Date()
+        updateVisitStatusInternal(visitId, status, now)
+    }
+
     @Query("UPDATE visits SET status = :status, isSynced = 0, syncAction = 'UPDATE', updatedAt = :now WHERE id = :visitId")
-    suspend fun updateVisitStatus(visitId: String, status: String, now: Date = Date())
+    suspend fun updateVisitStatusInternal(visitId: String, status: String, now: Date)
+
+    suspend fun updateVisitNotes(visitId: String, notes: String) {
+        val now = Date()
+        updateVisitNotesInternal(visitId, notes, now)
+    }
 
     @Query("UPDATE visits SET notes = :notes, isSynced = 0, syncAction = 'UPDATE', updatedAt = :now WHERE id = :visitId")
-    suspend fun updateVisitNotes(visitId: String, notes: String, now: Date = Date())
+    suspend fun updateVisitNotesInternal(visitId: String, notes: String, now: Date)
 
     // 🗑️ УДОБНЫЕ МЕТОДЫ
     @Query("DELETE FROM visits WHERE assignedStaffId = :staffId")
@@ -62,13 +74,4 @@ interface VisitDao {
 
     @Query("SELECT * FROM visits ORDER BY createdAt DESC LIMIT 5")
     suspend fun getRecentVisits(): List<VisitEntity>
-
-    @Query("""
-        SELECT v.*, 
-               CASE WHEN v.assignedStaffId = :currentUserId THEN 'ASSIGNED_TO_USER' 
-                    ELSE 'NOT_ASSIGNED' END as assignment_status
-        FROM visits v 
-        ORDER BY scheduledTime ASC
-    """)
-    suspend fun getVisitsWithAssignmentStatus(currentUserId: String): List<VisitEntity>
 }

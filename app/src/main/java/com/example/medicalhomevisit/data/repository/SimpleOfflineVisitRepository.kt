@@ -46,6 +46,59 @@ class SimpleOfflineVisitRepository @Inject constructor(
         }
     }
 
+    suspend fun getUnsyncedCount(): Int {
+        return try {
+            visitDao.getUnsyncedCount()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error getting unsynced count: ${e.message}")
+            0
+        }
+    }
+
+    // 🔄 Получение всех несинхронизированных записей (для отладки)
+    suspend fun getUnsyncedVisits(): List<Visit> {
+        return try {
+            val entities = visitDao.getUnsyncedVisits()
+            entities.map { convertEntityToDomain(it) }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error getting unsynced visits: ${e.message}")
+            emptyList()
+        }
+    }
+
+    // 🔄 Принудительная синхронизация конкретного визита
+    suspend fun syncVisit(visitId: String): Result<Unit> {
+        return try {
+            val entity = visitDao.getVisitById(visitId)
+            if (entity != null && !entity.isSynced) {
+                when (entity.syncAction) {
+                    "UPDATE" -> {
+                        // Пытаемся синхронизировать статус
+                        val request = com.example.medicalhomevisit.data.remote.dto.VisitStatusUpdateRequest(entity.status)
+                        val response = apiService.updateVisitStatus(entity.id, request)
+
+                        if (response.isSuccessful) {
+                            visitDao.markAsSynced(entity.id)
+                            Log.d(TAG, "✅ Visit $visitId synced successfully")
+                            Result.success(Unit)
+                        } else {
+                            visitDao.updateLastSyncAttempt(entity.id, Date())
+                            Result.failure(Exception("Server error: ${response.code()}"))
+                        }
+                    }
+                    else -> {
+                        Result.failure(Exception("Unsupported sync action: ${entity.syncAction}"))
+                    }
+                }
+            } else {
+                Result.success(Unit) // Уже синхронизировано
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error syncing visit $visitId: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     // 🔄 OFFLINE-FIRST: Загружаем из Room, обновляем с сервера в фоне
     override suspend fun getVisitsForStaff(staffId: String): List<Visit> {
         val actualStaffId = staffId.ifEmpty { getCurrentUserId() }
