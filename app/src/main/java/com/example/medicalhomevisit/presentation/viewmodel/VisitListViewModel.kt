@@ -3,6 +3,7 @@ package com.example.medicalhomevisit.presentation.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.medicalhomevisit.data.sync.SyncManager
 import com.example.medicalhomevisit.domain.model.Visit
 import com.example.medicalhomevisit.domain.model.VisitStatus
 import com.example.medicalhomevisit.domain.repository.AuthRepository
@@ -21,7 +22,8 @@ import javax.inject.Inject
 @HiltViewModel
 class VisitListViewModel @Inject constructor(
     private val visitRepository: VisitRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val syncManager: SyncManager
 ) : ViewModel() {
 
     companion object {
@@ -51,14 +53,19 @@ class VisitListViewModel @Inject constructor(
     private var currentUserId: String? = null
 
     init {
-        // Получаем текущего пользователя и загружаем визиты
+        // 🔄 ОФЛАЙН РЕЖИМ: Используем observeVisits для реактивности
         viewModelScope.launch {
             authRepository.currentUser.collectLatest { user ->
                 currentUserId = user?.id
                 if (currentUserId != null) {
+                    // Сначала загружаем данные
                     loadVisits()
-                    // В HTTP режиме нет постоянного наблюдения,
-                    // поэтому убираем observeVisits()
+
+                    // Затем подписываемся на изменения в Room
+                    observeVisits()
+
+                    // Настраиваем периодическую синхронизацию
+                    syncManager.setupPeriodicSync()
                 } else {
                     _allVisits.value = emptyList()
                     _uiState.value = VisitListUiState.Empty
@@ -71,18 +78,17 @@ class VisitListViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 visitRepository.observeVisits().collectLatest { allVisits ->
-                    if (allVisits.isNotEmpty()) {
-                        // Фильтруем только визиты текущего пользователя
-                        val userVisits = allVisits.filter { visit ->
-                            visit.assignedStaffId == currentUserId
-                        }
-                        _allVisits.value = userVisits
-                        applyFilters()
-                        _isOffline.value = false
-                    }
+                    Log.d(TAG, "📱 Received ${allVisits.size} visits from Room")
+                    _allVisits.value = allVisits
+                    applyFilters()
+
+                    // Определяем, работаем ли мы офлайн
+                    // (простая эвристика - если данные есть, значит загрузились когда-то)
+                    _isOffline.value = allVisits.isEmpty()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error observing visits: ${e.message}", e)
+                _uiState.value = VisitListUiState.Error(e.message ?: "Ошибка загрузки данных")
             }
         }
     }
@@ -94,67 +100,53 @@ class VisitListViewModel @Inject constructor(
             _uiState.value = VisitListUiState.Loading
 
             try {
+                // В офлайн режиме данные придут через observeVisits()
+                // Но мы все равно запускаем загрузку для обновления
                 val visits = visitRepository.getVisitsForStaff(userId)
+                Log.d(TAG, "📱 Initial load: ${visits.size} visits")
 
                 _allVisits.value = visits
-
                 applyFilters()
 
-
-                _isOffline.value = false
-
-                Log.d(TAG, "Loaded ${visits.size} visits for staff $userId")
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading visits: ${e.message}", e)
-
-                try {
-                    val cachedVisits = visitRepository.getCachedVisits()
-
-                    if (cachedVisits.isNotEmpty()) {
-                        _allVisits.value = cachedVisits
-                        applyFilters()
-                        _isOffline.value = true
-                    } else {
-                        _uiState.value = VisitListUiState.Error(e.message ?: "Неизвестная ошибка")
-                    }
-                } catch (cacheEx: Exception) {
+                Log.e(TAG, "Error in loadVisits: ${e.message}", e)
+                // В офлайн режиме ошибки не критичны - данные придут через observeVisits
+                if (_allVisits.value.isEmpty()) {
                     _uiState.value = VisitListUiState.Error(e.message ?: "Неизвестная ошибка")
                 }
             }
         }
     }
 
-    // Синхронизация данных (для использования при восстановлении подключения)
+    // 🔄 ОФЛАЙН РЕЖИМ: Принудительная синхронизация
     fun syncVisits() {
         viewModelScope.launch {
             try {
-                val result = visitRepository.syncVisits()
-                if (result.isSuccess) {
-                    val allVisits = result.getOrNull() ?: emptyList()
-                    _allVisits.value = allVisits
-                    applyFilters()
-                    _isOffline.value = false
-                    Log.d(TAG, "Visits synced successfully")
-                }
+                Log.d(TAG, "🔄 Manual sync requested")
+                syncManager.syncNow()
+
+                // Данные обновятся автоматически через observeVisits()
+                _isOffline.value = false
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error syncing visits: ${e.message}", e)
+                _isOffline.value = true
             }
         }
     }
 
-    // Обновляем дату фильтра
+    // 🔄 ОФЛАЙН РЕЖИМ: Обновление даты (работает офлайн)
     fun updateSelectedDate(date: Date) {
         _filterParams.update { it.copy(selectedDate = date) }
 
-        // Загружаем визиты для выбранной даты
+        // Загружаем данные для даты (если есть интернет)
         viewModelScope.launch {
             try {
-                val visits = visitRepository.getVisitsForDate(date)
-                _allVisits.value = visits
-                applyFilters()
+                visitRepository.getVisitsForDate(date)
+                // Данные обновятся через observeVisits()
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading visits for date: ${e.message}", e)
-                // В случае ошибки оставляем текущие данные и просто применяем фильтры
+                Log.w(TAG, "Error loading visits for date: ${e.message}")
+                // В офлайн режиме просто применяем фильтры к существующим данным
                 applyFilters()
             }
         }
@@ -179,9 +171,9 @@ class VisitListViewModel @Inject constructor(
     }
 
     // Применяем фильтры к списку визитов
+    // Применяем фильтры к списку визитов
     private fun applyFilters() {
         val filteredVisits = _allVisits.value.filter { visit ->
-            // Фильтр по дате
             val visitDate = Calendar.getInstance().apply { time = visit.scheduledTime }
             val selectedDate = Calendar.getInstance().apply { time = _filterParams.value.selectedDate }
             val sameDay = visitDate.get(Calendar.YEAR) == selectedDate.get(Calendar.YEAR) &&
@@ -199,58 +191,42 @@ class VisitListViewModel @Inject constructor(
             sameDay && statusMatches && searchMatches
         }
 
+        Log.d(TAG, "🔍 Filtered ${filteredVisits.size} visits from ${_allVisits.value.size} total")
+
         // Обновляем UI-состояние
         _uiState.value = if (filteredVisits.isEmpty()) {
             VisitListUiState.Empty
         } else {
             VisitListUiState.Success(filteredVisits)
         }
-
-        Log.d(TAG, "Applied filters: ${filteredVisits.size} visits shown")
     }
 
+    // 🔄 ОФЛАЙН РЕЖИМ: Обновление статуса работает офлайн
     fun updateVisitStatus(visitId: String, newStatus: VisitStatus) {
         viewModelScope.launch {
             try {
-                // Оптимистично обновляем UI
-                val currentVisits = _allVisits.value.toMutableList()
-                val index = currentVisits.indexOfFirst { it.id == visitId }
-
-                if (index != -1) {
-                    val updatedVisit = currentVisits[index].copy(status = newStatus)
-                    currentVisits[index] = updatedVisit
-                    _allVisits.value = currentVisits
-                    applyFilters()
-                }
-
-                // Выполняем обновление на сервере
+                // В офлайн режиме сразу обновляем Room, синхронизация будет позже
                 visitRepository.updateVisitStatus(visitId, newStatus)
+                Log.d(TAG, "✅ Visit status updated: $visitId -> $newStatus")
 
-                Log.d(TAG, "Visit status updated: $visitId -> $newStatus")
+                // UI обновится автоматически через observeVisits()
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating visit status: ${e.message}", e)
-                // В случае ошибки перезагружаем данные
-                loadVisits()
+                // В офлайн режиме показываем ошибку, но не перезагружаем данные
             }
         }
     }
 
-    // Добавим новые методы для работы с визитами
+    // 🔄 ОФЛАЙН РЕЖИМ: Обновление заметок работает офлайн
     fun updateVisitNotes(visitId: String, notes: String) {
         viewModelScope.launch {
             try {
                 visitRepository.updateVisitNotes(visitId, notes)
+                Log.d(TAG, "✅ Visit notes updated: $visitId")
 
-                // Обновляем локальный кэш
-                val currentVisits = _allVisits.value.toMutableList()
-                val index = currentVisits.indexOfFirst { it.id == visitId }
-                if (index != -1) {
-                    currentVisits[index] = currentVisits[index].copy(notes = notes)
-                    _allVisits.value = currentVisits
-                    applyFilters()
-                }
+                // UI обновится автоматически через observeVisits()
 
-                Log.d(TAG, "Visit notes updated: $visitId")
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating visit notes: ${e.message}", e)
             }
@@ -263,6 +239,19 @@ class VisitListViewModel @Inject constructor(
 
     fun completeVisit(visitId: String) {
         updateVisitStatus(visitId, VisitStatus.COMPLETED)
+    }
+
+    // 🔄 Проверка статуса синхронизации
+    fun checkSyncStatus() {
+        viewModelScope.launch {
+            try {
+                // Можно добавить метод в репозиторий для проверки количества несинхронизированных записей
+                // val unsyncedCount = visitRepository.getUnsyncedCount()
+                // _isOffline.value = unsyncedCount > 0
+            } catch (e: Exception) {
+                Log.w(TAG, "Error checking sync status: ${e.message}")
+            }
+        }
     }
 }
 

@@ -19,6 +19,7 @@ import com.example.medicalhomevisit.data.remote.network.TokenManager
 import com.example.medicalhomevisit.data.remote.api.VisitApiService
 import com.example.medicalhomevisit.data.remote.repository.AuthRepositoryImpl
 import com.example.medicalhomevisit.data.repository.SimpleOfflineVisitRepository
+import com.example.medicalhomevisit.data.sync.SyncManager
 import com.example.medicalhomevisit.domain.repository.AdminRepository
 import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
 import com.example.medicalhomevisit.domain.repository.AuthRepository
@@ -193,12 +194,19 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideSyncManager(@ApplicationContext context: Context): SyncManager {
+        return SyncManager(context)
+    }
+
+    @Provides
+    @Singleton
     fun provideVisitRepository(
         visitDao: VisitDao,
         visitApiService: VisitApiService,
-        authRepository: AuthRepository
+        authRepository: AuthRepository,
+        syncManager: SyncManager  // ← Добавить этот параметр
     ): VisitRepository {
-        return SimpleOfflineVisitRepository(visitDao, visitApiService, authRepository)
+        return SimpleOfflineVisitRepository(visitDao, visitApiService, authRepository, syncManager)  // ← И передать его здесь
     }
 
     @Provides
