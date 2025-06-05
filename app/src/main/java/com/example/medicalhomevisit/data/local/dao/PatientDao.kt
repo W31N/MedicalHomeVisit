@@ -8,7 +8,6 @@ import java.util.Date
 @Dao
 interface PatientDao {
 
-    // 📱 ОСНОВНЫЕ ОПЕРАЦИИ
     @Query("SELECT * FROM patients WHERE id = :patientId LIMIT 1")
     suspend fun getPatientById(patientId: String): PatientEntity?
 
@@ -36,7 +35,6 @@ interface PatientDao {
     @Delete
     suspend fun deletePatient(patient: PatientEntity)
 
-    // 🔄 МЕТОДЫ ДЛЯ СИНХРОНИЗАЦИИ
     @Query("SELECT * FROM patients WHERE isSynced = 0 ORDER BY updatedAt ASC")
     suspend fun getUnsyncedPatients(): List<PatientEntity>
 
@@ -46,7 +44,6 @@ interface PatientDao {
     @Query("UPDATE patients SET lastSyncAttempt = :timestamp WHERE id = :patientId")
     suspend fun updateLastSyncAttempt(patientId: String, timestamp: Date)
 
-    // Вспомогательные методы для обновления с офлайн пометкой
     suspend fun updatePatientProfile(
         patientId: String,
         dateOfBirth: Date?,
@@ -90,17 +87,12 @@ interface PatientDao {
         now: Date
     )
 
-    // 🗑️ УДОБНЫЕ МЕТОДЫ
     @Query("DELETE FROM patients")
     suspend fun deleteAllPatients()
 
     @Query("SELECT COUNT(*) FROM patients WHERE isSynced = 0")
     suspend fun getUnsyncedCount(): Int
 
-    // 🔍 ОТЛАДОЧНЫЕ МЕТОДЫ
     @Query("SELECT COUNT(*) FROM patients")
     suspend fun getTotalPatientsCount(): Int
-
-    @Query("SELECT * FROM patients ORDER BY updatedAt DESC LIMIT 10")
-    suspend fun getRecentPatients(): List<PatientEntity>
 }

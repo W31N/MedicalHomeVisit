@@ -1,4 +1,3 @@
-// com/example/medicalhomevisit/ui/admin/RegisterPatientScreen.kt
 package com.example.medicalhomevisit.presentation.ui.admin
 
 import android.app.DatePickerDialog
@@ -8,6 +7,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -58,7 +58,7 @@ fun RegisterPatientScreen(
                 title = { Text("Регистрация пациента") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -76,7 +76,6 @@ fun RegisterPatientScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Email
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
@@ -90,7 +89,6 @@ fun RegisterPatientScreen(
                 }
             )
 
-            // Пароль
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -113,7 +111,6 @@ fun RegisterPatientScreen(
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation()
             )
 
-            // Имя
             OutlinedTextField(
                 value = displayName,
                 onValueChange = { displayName = it },
@@ -127,7 +124,6 @@ fun RegisterPatientScreen(
                 }
             )
 
-            // Телефон
             OutlinedTextField(
                 value = phoneNumber,
                 onValueChange = { phoneNumber = it },
@@ -141,7 +137,6 @@ fun RegisterPatientScreen(
                 }
             )
 
-            // Адрес
             OutlinedTextField(
                 value = address,
                 onValueChange = { address = it },
@@ -155,7 +150,6 @@ fun RegisterPatientScreen(
                 }
             )
 
-            // Дата рождения
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -177,7 +171,6 @@ fun RegisterPatientScreen(
                     Spacer(modifier = Modifier.weight(1f))
 
                     TextButton(onClick = {
-                        // Показываем DatePickerDialog
                         val calendar = Calendar.getInstance()
                         calendar.time = dateOfBirth!!
                         DatePickerDialog(
@@ -200,7 +193,6 @@ fun RegisterPatientScreen(
                     Spacer(modifier = Modifier.weight(1f))
 
                     Button(onClick = {
-                        // Показываем DatePickerDialog
                         val calendar = Calendar.getInstance()
                         DatePickerDialog(
                             context,
@@ -219,7 +211,6 @@ fun RegisterPatientScreen(
                 }
             }
 
-            // Пол
             Column {
                 Text(
                     text = "Пол",
@@ -273,7 +264,6 @@ fun RegisterPatientScreen(
                 }
             }
 
-            // Номер медкарты
             OutlinedTextField(
                 value = medicalCardNumber,
                 onValueChange = { medicalCardNumber = it },
@@ -287,7 +277,6 @@ fun RegisterPatientScreen(
                 }
             )
 
-            // Дополнительная информация
             OutlinedTextField(
                 value = additionalInfo,
                 onValueChange = { additionalInfo = it },
@@ -299,7 +288,6 @@ fun RegisterPatientScreen(
                 minLines = 2
             )
 
-            // Кнопка регистрации
             Button(
                 onClick = {
                     if (dateOfBirth != null) {

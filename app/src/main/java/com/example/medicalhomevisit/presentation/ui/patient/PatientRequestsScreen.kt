@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,28 +28,14 @@ fun PatientRequestsScreen(
     onRequestDetails: (String) -> Unit,
     onProfileClick: () -> Unit
 ) {
-    // Используем uiState для определения общего состояния экрана
-    val uiState by viewModel.uiState.collectAsState()
-    // Используем requests для списка, который будет отображаться в Success и Empty состояниях,
-    // управляемых через uiState.
-    // val requests by viewModel.requests.collectAsState() // Можно получать список из uiState.Success
 
-    // Запускаем загрузку/обновление при первом появлении экрана или когда uiState это Initial/NotLoggedIn
-    // Либо можно добавить SwipeRefresh
-    LaunchedEffect(Unit) { // Unit гарантирует, что это запустится один раз при композиции
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
         if (viewModel.user.value != null && (uiState is PatientUiState.Initial || uiState is PatientUiState.NotLoggedIn)) {
             viewModel.refreshRequests()
         }
     }
-    // Или, если мы хотим обновлять при каждом входе на экран (если пользователь уже есть):
-    /*
-    LaunchedEffect(viewModel.user.value) {
-        if (viewModel.user.value != null) {
-            viewModel.refreshRequests()
-        }
-    }
-    */
-
 
     Scaffold(
         topBar = {
@@ -83,17 +70,16 @@ fun PatientRequestsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            when (val currentState = uiState) { // Используем currentState для удобства
+            when (val currentState = uiState) {
                 is PatientUiState.Initial, PatientUiState.Loading -> {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
                 is PatientUiState.Empty -> {
-                    EmptyStateContent() // Вынесем в отдельный Composable для чистоты
+                    EmptyStateContent()
                 }
                 is PatientUiState.Success -> {
-                    // Данные берем из currentState.requests, так как Success теперь их содержит
                     val requests = currentState.requests
                     if (requests.isNotEmpty()) {
                         RequestsListContent(
@@ -101,27 +87,16 @@ fun PatientRequestsScreen(
                             onRequestDetails = onRequestDetails
                         )
                     } else {
-                        // Этот случай не должен возникать, если Empty состояние обрабатывается отдельно,
-                        // но на всякий случай.
                         EmptyStateContent()
                     }
                 }
                 is PatientUiState.Error -> {
                     ErrorStateContent(
                         errorMessage = currentState.message,
-                        onRetry = { viewModel.refreshRequests() } // Используем refreshRequests для повторной загрузки
+                        onRetry = { viewModel.refreshRequests() }
                     )
                 }
                 is PatientUiState.RequestCreated, is PatientUiState.RequestCancelled -> {
-                    // Эти состояния временные. После них ViewModel должна перейти в Success/Empty/Error.
-                    // Можно показать CircularProgressIndicator, пока ViewModel не обновит uiState
-                    // или запустить LaunchedEffect для сброса в предыдущее состояние после показа Snackbar/Toast.
-                    // В текущей ViewModel, после RequestCreated/RequestCancelled, вызывается loadRequests,
-                    // что приведет к Loading -> Success/Empty/Error.
-                    // Для простоты, пока можно показывать предыдущий список или загрузку.
-                    // Либо PatientViewModel.resetUiStateToDefault() должен быть вызван после обработки этих состояний.
-                    // Сейчас PatientViewModel.loadRequests() после этих действий обновит uiState.
-                    // Покажем загрузку, ожидая обновления списка.
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center)
                     )
@@ -135,7 +110,7 @@ fun PatientRequestsScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            Icons.Default.Login,
+                            Icons.AutoMirrored.Filled.Login,
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
@@ -146,7 +121,6 @@ fun PatientRequestsScreen(
                             style = MaterialTheme.typography.titleMedium,
                             textAlign = TextAlign.Center
                         )
-                        // Можно добавить кнопку для перехода на экран входа
                     }
                 }
             }
@@ -166,7 +140,6 @@ fun RequestsListContent(
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Активные заявки
         val activeRequests = requests.filter {
             it.status == RequestStatus.NEW ||
                     it.status == RequestStatus.PENDING ||
@@ -183,7 +156,7 @@ fun RequestsListContent(
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             }
-            items(activeRequests, key = { it.id }) { request -> // Добавляем key для лучшей производительности
+            items(activeRequests, key = { it.id }) { request ->
                 RequestCard(
                     request = request,
                     onClick = { onRequestDetails(request.id) }
@@ -191,7 +164,6 @@ fun RequestsListContent(
             }
         }
 
-        // История заявок
         val historyRequests = requests.filter {
             it.status == RequestStatus.COMPLETED ||
                     it.status == RequestStatus.CANCELLED
@@ -205,7 +177,7 @@ fun RequestsListContent(
                     modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
                 )
             }
-            items(historyRequests, key = { it.id }) { request -> // Добавляем key
+            items(historyRequests, key = { it.id }) { request ->
                 RequestCard(
                     request = request,
                     onClick = { onRequestDetails(request.id) }
@@ -224,7 +196,7 @@ fun BoxScope.EmptyStateContent() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
-            Icons.Default.Healing, // Можно заменить на более подходящую иконку для "пусто"
+            Icons.Default.Healing,
             contentDescription = null,
             modifier = Modifier.size(64.dp),
             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
@@ -254,14 +226,13 @@ fun BoxScope.ErrorStateContent(errorMessage: String, onRetry: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
-            Icons.Default.ErrorOutline, // Иконка для ошибки
+            Icons.Default.ErrorOutline,
             contentDescription = null,
             modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.error
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Убрал специфичную обработку "FAILED_PRECONDITION", так как это лучше делать в ViewModel или при формировании сообщения об ошибке
         Text(
             text = errorMessage,
             style = MaterialTheme.typography.bodyMedium,
@@ -275,8 +246,6 @@ fun BoxScope.ErrorStateContent(errorMessage: String, onRetry: () -> Unit) {
     }
 }
 
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RequestCard(
     request: AppointmentRequest,
@@ -292,7 +261,6 @@ fun RequestCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // Статус и дата
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -301,7 +269,6 @@ fun RequestCard(
                 StatusChip(status = request.status)
 
                 Text(
-                    // Используем request.createdAt, которое должно быть non-null
                     text = "Создано: ${dateFormatter.format(request.createdAt)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -310,7 +277,6 @@ fun RequestCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Тип заявки и симптомы
             Text(
                 text = when (request.requestType) {
                     RequestType.EMERGENCY -> "Неотложный визит"
@@ -329,8 +295,6 @@ fun RequestCard(
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
 
-            // Дата визита (если есть)
-            // ИСПРАВЛЕНО: request.preferredDate -> request.preferredDateTime
             request.preferredDateTime?.let { preferredDateTime ->
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -344,7 +308,6 @@ fun RequestCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        // ИСПРАВЛЕНО: request.preferredDate -> preferredDateTime
                         text = dateTimeFormatter.format(preferredDateTime),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -352,8 +315,6 @@ fun RequestCard(
                 }
             }
 
-
-            // Адрес
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -396,17 +357,17 @@ fun StatusChip(status: RequestStatus) {
             "Назначен врач"
         )
         RequestStatus.SCHEDULED -> Triple(
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), // Увеличил alpha для лучшей читаемости
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
             MaterialTheme.colorScheme.primary,
             "Запланирован"
         )
         RequestStatus.IN_PROGRESS -> Triple(
-            MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f), // Увеличил alpha
+            MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f),
             MaterialTheme.colorScheme.secondary,
             "Выполняется"
         )
         RequestStatus.COMPLETED -> Triple(
-            MaterialTheme.colorScheme.surfaceVariant, // Был surfaceVariant, может быть лучше surfaceContainerHighest
+            MaterialTheme.colorScheme.surfaceVariant,
             MaterialTheme.colorScheme.onSurfaceVariant,
             "Выполнен"
         )
@@ -419,8 +380,8 @@ fun StatusChip(status: RequestStatus) {
 
     Surface(
         color = backgroundColor,
-        shape = MaterialTheme.shapes.small, // Можно попробовать RoundedCornerShape(8.dp)
-        tonalElevation = 1.dp // Небольшая тень для выделения
+        shape = MaterialTheme.shapes.small,
+        tonalElevation = 1.dp
     ) {
         Text(
             text = text,

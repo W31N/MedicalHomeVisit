@@ -17,7 +17,7 @@ interface ProtocolTemplateDao {
     suspend fun insertTemplates(templates: List<ProtocolTemplateEntity>)
 
     @Update
-    suspend fun updateTemplate(template: ProtocolTemplateEntity) // Если они редактируемые
+    suspend fun updateTemplate(template: ProtocolTemplateEntity)
 
     @Query("SELECT * FROM protocol_templates ORDER BY name ASC")
     fun getAllTemplates(): Flow<List<ProtocolTemplateEntity>>
@@ -27,10 +27,4 @@ interface ProtocolTemplateDao {
 
     @Query("SELECT * FROM protocol_templates WHERE name LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%' ORDER BY name ASC")
     fun searchTemplates(query: String): Flow<List<ProtocolTemplateEntity>>
-
-    // Методы для синхронизации, если шаблоны могут меняться на клиенте и синхронизироваться "вверх"
-    // @Query("SELECT * FROM protocol_templates WHERE isSynced = 0")
-    // suspend fun getUnsyncedTemplates(): List<ProtocolTemplateEntity>
-    // @Query("UPDATE protocol_templates SET isSynced = 1, syncAction = null WHERE id = :templateId")
-    // suspend fun markTemplateAsSynced(templateId: String)
 }

@@ -40,12 +40,12 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.currentUser.collect { userValue ->
                 _user.value = userValue
-                if (userValue != null && (userValue.role == UserRole.ADMIN || userValue.role == UserRole.DISPATCHER) ) { // Проверка роли
+                if (userValue != null && (userValue.role == UserRole.ADMIN || userValue.role == UserRole.DISPATCHER) ) {
                     Log.d(TAG, "Admin/Dispatcher logged in. Loading initial data.")
                     refreshData()
                 } else if (userValue == null) {
                     _uiState.value =
-                        AdminUiState.Error("Пользователь не авторизован") // Или другое состояние
+                        AdminUiState.Error("Пользователь не авторизован")
                     Log.w(TAG, "User is null, cannot load admin data.")
                 } else {
                     _uiState.value = AdminUiState.Error("Недостаточно прав доступа")
@@ -60,7 +60,7 @@ class AdminViewModel @Inject constructor(
             _uiState.value = AdminUiState.Loading
             Log.d(TAG, "Loading active requests...")
             try {
-                val result = appointmentRequestRepository.getAllActiveRequests() // <-- ИЗМЕНЕНИЕ: ожидаем Result<>
+                val result = appointmentRequestRepository.getAllActiveRequests()
                 if (result.isSuccess) {
                     val requests = result.getOrNull() ?: emptyList()
                     _activeRequests.value = requests
@@ -163,7 +163,7 @@ class AdminViewModel @Inject constructor(
         phoneNumber: String,
         address: String,
         dateOfBirth: Date,
-        gender: String, // Рекомендую использовать Enum для gender
+        gender: String,
         medicalCardNumber: String?,
         additionalInfo: String?
     ) {
@@ -185,8 +185,6 @@ class AdminViewModel @Inject constructor(
                 if (result.isSuccess) {
                     Log.d(TAG, "Patient $email registered successfully.")
                     _uiState.value = AdminUiState.PatientCreated
-                    // Здесь не нужно перезагружать списки заявок или врачей,
-                    // если только регистрация пациента на это не влияет.
                 } else {
                     val errorMsg = result.exceptionOrNull()?.message ?: "Ошибка при регистрации пациента"
                     Log.e(TAG, "Error registering new patient: $errorMsg", result.exceptionOrNull())

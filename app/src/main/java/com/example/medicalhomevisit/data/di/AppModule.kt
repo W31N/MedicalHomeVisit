@@ -21,6 +21,7 @@ import com.example.medicalhomevisit.data.remote.api.VisitApiService
 import com.example.medicalhomevisit.data.remote.repository.AuthRepositoryImpl
 import com.example.medicalhomevisit.data.repository.SimpleOfflinePatientRepository
 import com.example.medicalhomevisit.data.repository.SimpleOfflineProtocolRepository
+import com.example.medicalhomevisit.data.repository.SimpleOfflineProtocolTemplateRepository
 import com.example.medicalhomevisit.data.repository.SimpleOfflineVisitRepository
 import com.example.medicalhomevisit.data.sync.SyncManager
 import com.example.medicalhomevisit.domain.repository.AdminRepository
@@ -28,6 +29,7 @@ import com.example.medicalhomevisit.domain.repository.AppointmentRequestReposito
 import com.example.medicalhomevisit.domain.repository.AuthRepository
 import com.example.medicalhomevisit.domain.repository.PatientRepository
 import com.example.medicalhomevisit.domain.repository.ProtocolRepository
+import com.example.medicalhomevisit.domain.repository.ProtocolTemplateRepository
 import com.example.medicalhomevisit.domain.repository.VisitRepository
 import com.google.gson.GsonBuilder
 import dagger.Module
@@ -49,8 +51,6 @@ object AppModule {
     private const val BASE_URL = "http://192.168.0.102:8080/"
 //    private const val BASE_URL = "http://10.0.2.2:8080/"
 
-    // ===== ROOM DATABASE =====
-
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -59,7 +59,7 @@ object AppModule {
             AppDatabase::class.java,
             "medical_home_visit_database"
         )
-            .fallbackToDestructiveMigration() // Для разработки - удаляет БД при изменении схемы
+            .fallbackToDestructiveMigration()
             .build()
     }
 
@@ -72,8 +72,18 @@ object AppModule {
     @Provides
     fun provideProtocolTemplateDao(database: AppDatabase): ProtocolTemplateDao = database.protocolTemplateDao()
 
+    @Provides
+    @Singleton
+    fun provideProtocolTemplateRepository(
+        protocolTemplateDao: ProtocolTemplateDao,
+        protocolApiService: ProtocolApiService
+    ): ProtocolTemplateRepository {
+        return SimpleOfflineProtocolTemplateRepository(
+            protocolTemplateDao,
+            protocolApiService
+        )
+    }
 
-    // ===== NETWORKING =====
 
     @Provides
     @Singleton
@@ -117,8 +127,6 @@ object AppModule {
             .build()
     }
 
-    // ===== API SERVICES =====
-
     @Provides
     @Singleton
     fun provideAuthApiService(retrofit: Retrofit): AuthApiService {
@@ -155,8 +163,6 @@ object AppModule {
         return retrofit.create(ProtocolApiService::class.java)
     }
 
-    // ===== REPOSITORIES =====
-
     @Provides
     @Singleton
     fun provideAuthRepository(
@@ -173,14 +179,13 @@ object AppModule {
     @Singleton
     fun provideAppointmentRequestRepository(
         appointmentApiService: AppointmentApiService,
-        tokenManager: TokenManager, // Добавляем TokenManager как параметр
-        authRepository: AuthRepository // Добавляем AuthRepository как параметр
-        // Используй конкретный тип интерфейса, который ты указал для AuthRepository
-    ): AppointmentRequestRepository { // Это тип возвращаемого интерфейса
+        tokenManager: TokenManager,
+        authRepository: AuthRepository
+    ): AppointmentRequestRepository {
         return AppointmentRequestRepositoryImpl(
             appointmentApiService,
-            tokenManager, // Передаем его здесь
-            authRepository  // Передаем его здесь
+            tokenManager,
+            authRepository
         )
     }
 
@@ -188,24 +193,18 @@ object AppModule {
     @Singleton
     fun provideAdminRepository(
         adminApiService: AdminApiService,
-        tokenManager: TokenManager // Если нужен в BackendAdminRepository
-    ): AdminRepository { // Убедись, что это твой интерфейс AdminRepository
+        tokenManager: TokenManager
+    ): AdminRepository {
         return AdminRepositoryImpl(adminApiService, tokenManager)
     }
 
-//    @Provides
-//    @Singleton
-//    fun provideVisitRepository(
-//        visitApiService: VisitApiService,
-//        authRepository: AuthRepository
-//    ): VisitRepository {
-//        return VisitRepositoryImpl(visitApiService, authRepository)
-//    }
-
     @Provides
     @Singleton
-    fun provideSyncManager(@ApplicationContext context: Context): SyncManager {
-        return SyncManager(context)
+    fun provideSyncManager(
+        @ApplicationContext context: Context,
+        protocolTemplateRepository: ProtocolTemplateRepository
+    ): SyncManager {
+        return SyncManager(context, protocolTemplateRepository)
     }
 
     @Provides
@@ -214,15 +213,13 @@ object AppModule {
         visitDao: VisitDao,
         visitApiService: VisitApiService,
         authRepository: AuthRepository,
-        syncManager: SyncManager,
-        @OfflinePatientRepository patientRepository: PatientRepository // ← ДОБАВЛЕН НЕДОСТАЮЩИЙ ПАРАМЕТР
+        syncManager: SyncManager
     ): VisitRepository {
         return SimpleOfflineVisitRepository(
             visitDao,
             visitApiService,
             authRepository,
-            syncManager,
-            patientRepository
+            syncManager
         )
     }
 
@@ -238,15 +235,6 @@ object AppModule {
 
     @Provides
     fun providePatientDao(database: AppDatabase): PatientDao = database.patientDao()
-
-//    @Provides
-//    @Singleton
-//    fun provideProtocolRepository(
-//        protocolApiService: ProtocolApiService,
-//        authRepository: AuthRepository
-//    ): ProtocolRepository {
-//        return ProtocolRepositoryImpl(protocolApiService, authRepository)
-//    }
 
     @Provides
     @Singleton
@@ -267,15 +255,13 @@ object AppModule {
         protocolTemplateDao: ProtocolTemplateDao,
         authRepository: AuthRepository,
         syncManager: SyncManager
-        // visitDao: VisitDao,
     ): ProtocolRepository {
         return SimpleOfflineProtocolRepository(
             protocolApiService,
-            visitProtocolDao,         // Передаем DAO
-            protocolTemplateDao,      // Передаем DAO
-            authRepository,           // Передаем, если нужно
-            syncManager               // Передаем SyncManager
-            // visitDao
+            visitProtocolDao,
+            protocolTemplateDao,
+            authRepository,
+            syncManager
         )
     }
 }

@@ -22,17 +22,7 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-
-        // Настройки для Room
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments += mapOf(
-                    "room.schemaLocation" to "$projectDir/schemas",
-                    "room.incremental" to "true"
-                )
-            }
     }
-        }
 
     buildTypes {
         release {
@@ -61,7 +51,14 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
+        arg("room.incremental", "true")
+    }
 }
+
+
 
 dependencies {
 

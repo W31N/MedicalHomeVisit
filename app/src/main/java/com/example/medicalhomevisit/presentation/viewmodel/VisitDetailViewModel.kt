@@ -13,7 +13,6 @@ import com.example.medicalhomevisit.domain.model.VisitStatus
 import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
 import com.example.medicalhomevisit.domain.repository.PatientRepository
 import com.example.medicalhomevisit.domain.repository.VisitRepository
-import com.example.medicalhomevisit.domain.model.RequestType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +26,6 @@ class VisitDetailViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val visitRepository: VisitRepository,
     private val appointmentRequestRepository: AppointmentRequestRepository,
-//    private val protocolRepository: ProtocolRepository,
     @OfflinePatientRepository private val patientRepository: PatientRepository
 ) : ViewModel() {
 
@@ -48,18 +46,16 @@ class VisitDetailViewModel @Inject constructor(
     private val _originalRequest = MutableStateFlow<AppointmentRequest?>(null)
     val originalRequest: StateFlow<AppointmentRequest?> = _originalRequest.asStateFlow()
 
-    // Флаг офлайн режима
     private val _isOffline = MutableStateFlow(false)
     val isOffline: StateFlow<Boolean> = _isOffline.asStateFlow()
 
-    // Хранение текущего визита для удобства
     private val _visit = MutableStateFlow<Visit?>(null)
     private val visit: StateFlow<Visit?> = _visit.asStateFlow()
 
     init {
         Log.d(TAG, "VisitDetailViewModel initialized with visitId: $visitId")
-        observeVisitChanges() // Наблюдает за изменениями самого визита
-        loadVisitDetails()    // Загружает детали визита и инициирует загрузку/наблюдение за пациентом
+        observeVisitChanges()
+        loadVisitDetails()
     }
 
     private fun observeVisitChanges() {
@@ -83,24 +79,20 @@ class VisitDetailViewModel @Inject constructor(
             _uiState.value = VisitDetailUiState.Loading
 
             try {
-                // Получаем визит из репозитория
                 val visit = visitRepository.getVisitById(visitId)
                 _visit.value = visit
                 _uiState.value = VisitDetailUiState.Success(visit)
-                Log.d(TAG, "Visit loaded: ${visit.id}, Patient ID for this visit: ${visit.patientId}") // <--- ЛОГ
+                Log.d(TAG, "Visit loaded: ${visit.id}, Patient ID for this visit: ${visit.patientId}")
 
-                // Если визит создан из заявки, загружаем дополнительную информацию
                 if (visit.isFromRequest && visit.originalRequestId != null) {
                     loadOriginalRequest(visit.originalRequestId)
                 }
 
-                // Загружаем информацию о пациенте
                 loadPatientDetails(visit.patientId)
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading visit: ${e.message}", e)
 
-                // Проверяем, есть ли кэшированные данные
                 try {
                     val cachedVisits = visitRepository.getCachedVisits()
                     val cachedVisit = cachedVisits.find { it.id == visitId }
@@ -110,7 +102,6 @@ class VisitDetailViewModel @Inject constructor(
                         _isOffline.value = true
                         loadPatientDetails(cachedVisit.patientId)
 
-                        // Попытка загрузить оригинальную заявку из кэша
                         if (cachedVisit.isFromRequest && cachedVisit.originalRequestId != null) {
                             loadOriginalRequest(cachedVisit.originalRequestId)
                         }
@@ -137,7 +128,6 @@ class VisitDetailViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Could not load original request: ${e.message}", e)
-                // Не критичная ошибка, продолжаем работу без оригинальной заявки
             }
         }
     }
@@ -153,26 +143,22 @@ class VisitDetailViewModel @Inject constructor(
                 return@launch
             }
 
-            // Сначала пытаемся загрузить пациента синхронно (чтобы убедиться что он есть в кэше)
             try {
                 val patient = patientRepository.getPatientById(patientId)
                 _patientState.value = PatientState.Success(patient)
                 Log.d(TAG, "Patient loaded successfully: ${patient.fullName}")
 
-                // Теперь настраиваем наблюдение за изменениями
                 observePatientChanges(patientId)
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading patient: ${e.message}", e)
 
-                // Проверяем кэш как fallback
                 try {
                     val cachedPatient = patientRepository.getCachedPatientById(patientId)
                     if (cachedPatient != null) {
                         _patientState.value = PatientState.Success(cachedPatient)
                         _isOffline.value = true
                         Log.d(TAG, "Patient loaded from cache: ${cachedPatient.fullName}")
-                        // Все равно пытаемся наблюдать за изменениями
                         observePatientChanges(patientId)
                     } else {
                         _patientState.value = PatientState.Error(
@@ -200,7 +186,6 @@ class VisitDetailViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error observing patient changes: ${e.message}", e)
-                // Не меняем состояние, если наблюдение прервалось - остаемся на последних успешных данных
             }
         }
     }
@@ -211,15 +196,12 @@ class VisitDetailViewModel @Inject constructor(
                 Log.d(TAG, "Updating visit status to: $newStatus")
                 val currentVisit = _visit.value ?: return@launch
 
-                // Для мгновенного обновления UI
                 val updatedVisit = currentVisit.copy(status = newStatus)
                 _visit.value = updatedVisit
                 _uiState.value = VisitDetailUiState.Success(updatedVisit)
 
-                // Обновляем статус визита в репозитории
                 visitRepository.updateVisitStatus(visitId, newStatus)
 
-                // Если визит связан с заявкой, обновляем и её статус
                 if (currentVisit.isFromRequest && currentVisit.originalRequestId != null) {
                     val requestStatus = mapVisitStatusToRequestStatus(newStatus)
                     Log.d(TAG, "Updating original request status to: $requestStatus")
@@ -243,7 +225,6 @@ class VisitDetailViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating status: ${e.message}", e)
                 _isOffline.value = true
-                // В случае ошибки возвращаем предыдущее состояние
                 loadVisitDetails()
             }
         }
@@ -255,99 +236,14 @@ class VisitDetailViewModel @Inject constructor(
             VisitStatus.IN_PROGRESS -> RequestStatus.IN_PROGRESS
             VisitStatus.COMPLETED -> RequestStatus.COMPLETED
             VisitStatus.CANCELLED -> RequestStatus.CANCELLED
-            else -> RequestStatus.ASSIGNED
         }
     }
 
-    fun addVisitNote(note: String) {
-        viewModelScope.launch {
-            try {
-                val currentVisit = _visit.value ?: return@launch
-                val updatedNotes = if (currentVisit.notes.isBlank()) {
-                    note
-                } else {
-                    "${currentVisit.notes}\n\n$note"
-                }
-
-                visitRepository.updateVisitNotes(visitId, updatedNotes)
-                Log.d(TAG, "Visit note added successfully")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error adding visit note: ${e.message}", e)
-                _isOffline.value = true
-            }
-        }
-    }
-
-    fun updateScheduledTime(newTime: java.util.Date) {
-        viewModelScope.launch {
-            try {
-                visitRepository.updateScheduledTime(visitId, newTime)
-                Log.d(TAG, "Scheduled time updated successfully")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error updating scheduled time: ${e.message}", e)
-                _isOffline.value = true
-            }
-        }
-    }
-
-    // Метод для проверки, можно ли создать протокол для данного визита
     fun canCreateProtocol(): Boolean {
         val currentVisit = _visit.value
         return currentVisit != null &&
                 (currentVisit.status == VisitStatus.IN_PROGRESS ||
                         currentVisit.status == VisitStatus.COMPLETED)
-    }
-
-    // Метод для получения дополнительной информации из оригинальной заявки
-    fun getAdditionalRequestInfo(): String? {
-        val request = _originalRequest.value
-        return if (request != null) {
-            buildString {
-                appendLine("Информация из заявки:")
-                appendLine("Тип: ${getRequestTypeText(request.requestType)}")
-                appendLine("Симптомы: ${request.symptoms}")
-                if (request.additionalNotes.isNotBlank()) {
-                    appendLine("Дополнительные заметки: ${request.additionalNotes}")
-                }
-            }
-        } else null
-    }
-
-    private fun getRequestTypeText(requestType: RequestType): String {
-        return when (requestType) {
-            RequestType.EMERGENCY -> "Неотложная"
-            RequestType.REGULAR -> "Плановая"
-            RequestType.CONSULTATION -> "Консультация"
-        }
-    }
-
-    // Метод для повторной синхронизации при восстановлении соединения
-    fun syncData() {
-        viewModelScope.launch {
-            try {
-                visitRepository.syncVisits()
-                // Убираем syncRequests так как его нет в AppointmentRequestRepository
-                // appointmentRequestRepository.syncRequests()
-                patientRepository.syncPatients()
-                _isOffline.value = false
-                loadVisitDetails()
-                Log.d(TAG, "Data synced successfully")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error syncing data: ${e.message}", e)
-                // Даже если синхронизация не удалась, попробуем загрузить локальные данные
-                loadVisitDetails()
-            }
-        }
-    }
-
-    // Метод для проверки, является ли визит созданным из заявки
-    fun isVisitFromRequest(): Boolean {
-        return _visit.value?.isFromRequest == true
-    }
-
-    // Метод для получения ID оригинальной заявки
-    fun getOriginalRequestId(): String? {
-        return _visit.value?.originalRequestId
     }
 }
 

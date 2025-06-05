@@ -87,7 +87,6 @@ class PatientProfileViewModel @Inject constructor(
 
                 val updatedPatient = patientRepository.updateMyProfile(profileUpdate)
 
-                // Обновляем локальные данные
                 _profileData.value = PatientProfileData(
                     fullName = updatedPatient.fullName,
                     dateOfBirth = updatedPatient.dateOfBirth,

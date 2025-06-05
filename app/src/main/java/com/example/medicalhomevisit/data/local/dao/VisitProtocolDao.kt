@@ -20,7 +20,6 @@ interface VisitProtocolDao {
     @Update
     suspend fun updateProtocol(protocol: VisitProtocolEntity)
 
-    // Обновление статуса синхронизации
     @Query("UPDATE visit_protocols SET isSynced = :synced, syncAction = null, lastSyncAttempt = :attemptTime WHERE id = :protocolId")
     suspend fun markAsSynced(protocolId: String, synced: Boolean = true, attemptTime: Date = Date())
 
@@ -31,10 +30,10 @@ interface VisitProtocolDao {
     suspend fun incrementFailCount(protocolId: String, attemptTime: Date = Date())
 
     @Query("SELECT * FROM visit_protocols WHERE visitId = :visitId LIMIT 1")
-    fun getProtocolByVisitId(visitId: String): Flow<VisitProtocolEntity?> // Flow для реактивного UI
+    fun getProtocolByVisitId(visitId: String): Flow<VisitProtocolEntity?>
 
     @Query("SELECT * FROM visit_protocols WHERE visitId = :visitId LIMIT 1")
-    suspend fun getProtocolByVisitIdOnce(visitId: String): VisitProtocolEntity? // Для однократного получения
+    suspend fun getProtocolByVisitIdOnce(visitId: String): VisitProtocolEntity?
 
     @Query("SELECT * FROM visit_protocols WHERE id = :protocolId LIMIT 1")
     suspend fun getProtocolById(protocolId: String): VisitProtocolEntity?

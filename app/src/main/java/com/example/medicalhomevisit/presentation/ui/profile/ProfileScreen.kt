@@ -2,6 +2,8 @@ package com.example.medicalhomevisit.presentation.ui.profile
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,7 +20,7 @@ import com.example.medicalhomevisit.presentation.viewmodel.AuthViewModel
 @Composable
 fun ProfileScreen(
     viewModel: AuthViewModel,
-    navController: NavController,  // ← ДОБАВИТЬ
+    navController: NavController,
     onNavigateBack: () -> Unit,
     onSignOut: () -> Unit
 ) {
@@ -33,7 +35,7 @@ fun ProfileScreen(
                 title = { Text("Профиль") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -51,7 +53,6 @@ fun ProfileScreen(
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Аватар пользователя
                 Surface(
                     modifier = Modifier
                         .size(120.dp)
@@ -71,7 +72,6 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Имя пользователя
                 Text(
                     text = user.displayName.ifEmpty { "Пользователь" },
                     style = MaterialTheme.typography.titleLarge
@@ -85,7 +85,6 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Роль пользователя
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -122,7 +121,6 @@ fun ProfileScreen(
                     }
                 }
 
-                // Кнопка редактирования профиля для пациентов
                 if (user.role == UserRole.PATIENT) {
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -142,7 +140,6 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Дополнительная информация
                 if (!user.isEmailVerified) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -175,7 +172,6 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Кнопки действий
                 Button(
                     onClick = { showSignOutDialog = true },
                     modifier = Modifier
@@ -187,7 +183,7 @@ fun ProfileScreen(
                     )
                 ) {
                     Icon(
-                        Icons.Default.Logout,
+                        Icons.AutoMirrored.Filled.Logout,
                         contentDescription = null,
                         modifier = Modifier.size(ButtonDefaults.IconSize)
                     )

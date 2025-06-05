@@ -24,22 +24,10 @@ class AuthRepositoryImpl(
     override val currentUser: Flow<User?> = _currentUserFlow.asStateFlow()
 
     init {
-        // При инициализации проверяем, есть ли сохраненный токен,
-        // и пытаемся загрузить данные пользователя.
-        // Это можно сделать в ViewModel при старте приложения.
-        // Здесь просто инициализируем _currentUserFlow на основе сохраненного токена
-        // (без запроса к /me для простоты начальной настройки)
-        // Более полная реализация должна бы запросить /api/users/me
         if (isLoggedIn()) {
-            // В реальном приложении здесь стоит загрузить данные пользователя с сервера
-            // или из сохраненных локально после предыдущего входа.
-            // Для примера, если бы мы сохраняли UserDto:
-            // val savedUserDto = tokenManager.getUserInfo() // если бы такой метод был
-            // _currentUserFlow.value = savedUserDto?.toDomainUser()
             Log.d("BackendAuthRepo", "User might be logged in (token exists). ViewModel should verify.")
         }
     }
-
 
     override suspend fun signIn(email: String, password: String): Result<User> {
         return withContext(Dispatchers.IO) {
@@ -50,7 +38,6 @@ class AuthRepositoryImpl(
                     tokenManager.saveToken(loginResponse.token)
                     val user = loginResponse.user.toDomainUser()
                     _currentUserFlow.value = user
-                    // tokenManager.saveUserInfo(user) // Опционально, если сохраняете UserDto
                     Result.success(user)
                 } else {
                     val errorMsg = response.errorBody()?.string() ?: "Ошибка входа: ${response.code()}"
@@ -72,7 +59,7 @@ class AuthRepositoryImpl(
                 val response = authApiService.register(request)
                 Log.d("BackendAuthRepo", "Registration response code: ${response.code()}")
                 if (response.isSuccessful && response.body() != null) {
-                    val loginResponse = response.body()!! // Теперь это LoginResponseDto
+                    val loginResponse = response.body()!!
                     Log.d("BackendAuthRepo", "Registration successful, received token: ${loginResponse.token.take(20)}...")
                     tokenManager.saveToken(loginResponse.token)
                     Log.d("BackendAuthRepo", "Token saved to TokenManager")
@@ -96,8 +83,7 @@ class AuthRepositoryImpl(
     override suspend fun signOut() {
         withContext(Dispatchers.IO) {
             try {
-                // Опционально: если ваш бэкенд имеет эндпоинт /logout
-                // authApiService.logout()
+                 authApiService.logout()
             } catch (e: Exception) {
                 Log.w("BackendAuthRepo", "Error calling backend logout (optional)", e)
             }
@@ -108,38 +94,15 @@ class AuthRepositoryImpl(
 
     override fun isLoggedIn(): Boolean {
         return tokenManager.getToken() != null
-        // Для более надежной проверки можно декодировать токен и проверять срок его действия
-        // (но не для проверки подлинности, а для UI/UX).
     }
 
-    // Этот метод может быть вызван, например, при старте приложения, если токен есть
     override suspend fun fetchAndUpdateCurrentUser(): User? {
         if (!isLoggedIn()) {
             _currentUserFlow.value = null
             return null
         }
-        // TODO: Реализовать эндпоинт на бэкенде типа GET /api/users/me или /api/auth/profile
-        // который по валидному токену вернет UserDto
-        // Пример:
-        // return try {
-        //     val response = authApiService.getCurrentUserProfile() // Предполагаемый новый метод в AuthApiService
-        //     if (response.isSuccessful && response.body() != null) {
-        //         val user = response.body()!!.toDomainUser()
-        //         _currentUserFlow.value = user
-        //         user
-        //     } else {
-        //         tokenManager.clearToken() // Токен невалиден
-        //         _currentUserFlow.value = null
-        //         null
-        //     }
-        // } catch (e: Exception) {
-        //     Log.e("BackendAuthRepo", "Error fetching current user profile", e)
-        //     tokenManager.clearToken()
-        //     _currentUserFlow.value = null
-        //     null
-        // }
         Log.w("BackendAuthRepo", "fetchAndUpdateCurrentUser: Not implemented yet. Returning current flow value.")
-        return _currentUserFlow.value // Пока возвращаем то, что есть
+        return _currentUserFlow.value
     }
 }
 
@@ -152,7 +115,7 @@ fun UserDto.toDomainUser(): User {
             UserRole.valueOf(this.role.uppercase())
         } catch (e: IllegalArgumentException) {
             Log.w("UserMapper", "Unknown role from server: ${this.role}, defaulting to PATIENT")
-            UserRole.PATIENT // Роль по умолчанию или обработка ошибки
+            UserRole.PATIENT
         },
         isEmailVerified = this.emailVerified,
         medicalPersonId = this.medicalPersonId

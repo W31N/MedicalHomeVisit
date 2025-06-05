@@ -2,16 +2,20 @@ package com.example.medicalhomevisit.data.sync
 
 import android.content.Context
 import android.util.Log
-import androidx.lifecycle.LiveData
 import androidx.work.*
+import com.example.medicalhomevisit.domain.repository.ProtocolTemplateRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class SyncManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val protocolTemplateRepository: ProtocolTemplateRepository
 ) {
     private val workManager = WorkManager.getInstance(context)
 
@@ -19,34 +23,40 @@ class SyncManager @Inject constructor(
         private const val TAG = "SyncManager"
     }
 
-    // ===== УНИВЕРСАЛЬНАЯ СИНХРОНИЗАЦИЯ =====
-
     fun syncNow() {
-        Log.d(TAG, "🚀 Starting immediate sync for all data...")
+        Log.d(TAG, "Starting immediate sync for all data...")
         syncVisitsNow()
         syncProtocolsNow()
         syncPatientsNow()
+        syncTemplatesNow()
+    }
+
+    private fun syncTemplatesNow() {
+        Log.d(TAG, "Starting immediate template sync...")
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val result = protocolTemplateRepository.refreshTemplates()
+                if (result.isSuccess) {
+                    Log.d(TAG, "Templates synced successfully")
+                } else {
+                    Log.w(TAG, "Templates sync failed: ${result.exceptionOrNull()?.message}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Templates sync error: ${e.message}", e)
+            }
+        }
     }
 
     fun setupPeriodicSync() {
-        Log.d(TAG, "⚙️ Setting up periodic sync for all data...")
+        Log.d(TAG, "Setting up periodic sync for all data...")
         setupPeriodicVisitSync()
         setupPeriodicProtocolSync()
         setupPeriodicPatientSync()
     }
 
-    fun cancelAllSync() {
-        Log.d(TAG, "❌ Cancelling all sync work...")
-        cancelVisitSync()
-        cancelProtocolSync()
-        cancelPatientSync()
-    }
-
-
-    // ===== СИНХРОНИЗАЦИЯ ВИЗИТОВ =====
-
-    fun syncVisitsNow() {
-        Log.d(TAG, "🚀 Starting immediate visit sync...")
+    private fun syncVisitsNow() {
+        Log.d(TAG, "Starting immediate visit sync...")
 
         val syncRequest = OneTimeWorkRequestBuilder<VisitSyncWorker>()
             .setConstraints(
@@ -63,11 +73,11 @@ class SyncManager @Inject constructor(
         )
     }
 
-    fun setupPeriodicVisitSync() {
-        Log.d(TAG, "⚙️ Setting up periodic visit sync...")
+    private fun setupPeriodicVisitSync() {
+        Log.d(TAG, "Setting up periodic visit sync...")
 
         val periodicSyncRequest = PeriodicWorkRequestBuilder<VisitSyncWorker>(
-            15, TimeUnit.MINUTES // Каждые 15 минут
+            15, TimeUnit.MINUTES
         )
             .setConstraints(
                 Constraints.Builder()
@@ -84,16 +94,8 @@ class SyncManager @Inject constructor(
         )
     }
 
-    fun cancelVisitSync() {
-        Log.d(TAG, "❌ Cancelling visit sync work...")
-        workManager.cancelUniqueWork(VisitSyncWorker.WORK_NAME)
-        workManager.cancelUniqueWork("${VisitSyncWorker.WORK_NAME}_periodic")
-    }
-
-    // ===== СИНХРОНИЗАЦИЯ ПРОТОКОЛОВ =====
-
     fun syncProtocolsNow() {
-        Log.d(TAG, "🚀 Starting immediate protocol sync...")
+        Log.d(TAG, "Starting immediate protocol sync...")
 
         val syncRequest = OneTimeWorkRequestBuilder<ProtocolSyncWorker>()
             .setConstraints(
@@ -110,11 +112,11 @@ class SyncManager @Inject constructor(
         )
     }
 
-    fun setupPeriodicProtocolSync() {
-        Log.d(TAG, "⚙️ Setting up periodic protocol sync...")
+    private fun setupPeriodicProtocolSync() {
+        Log.d(TAG, "Setting up periodic protocol sync...")
 
         val periodicSyncRequest = PeriodicWorkRequestBuilder<ProtocolSyncWorker>(
-            15, TimeUnit.MINUTES // Каждые 15 минут
+            15, TimeUnit.MINUTES
         )
             .setConstraints(
                 Constraints.Builder()
@@ -131,14 +133,8 @@ class SyncManager @Inject constructor(
         )
     }
 
-    fun cancelProtocolSync() {
-        Log.d(TAG, "❌ Cancelling protocol sync work...")
-        workManager.cancelUniqueWork(ProtocolSyncWorker.WORK_NAME)
-        workManager.cancelUniqueWork("${ProtocolSyncWorker.WORK_NAME}_periodic")
-    }
-
-    fun syncPatientsNow() {
-        Log.d(TAG, "🚀 Starting immediate patient sync...")
+    private fun syncPatientsNow() {
+        Log.d(TAG, "Starting immediate patient sync...")
 
         val syncRequest = OneTimeWorkRequestBuilder<PatientSyncWorker>()
             .setConstraints(
@@ -155,11 +151,11 @@ class SyncManager @Inject constructor(
         )
     }
 
-    fun setupPeriodicPatientSync() {
-        Log.d(TAG, "⚙️ Setting up periodic patient sync...")
+    private fun setupPeriodicPatientSync() {
+        Log.d(TAG, "Setting up periodic patient sync...")
 
         val periodicSyncRequest = PeriodicWorkRequestBuilder<PatientSyncWorker>(
-            30, TimeUnit.MINUTES // Каждые 30 минут (пациенты обновляются реже)
+            30, TimeUnit.MINUTES
         )
             .setConstraints(
                 Constraints.Builder()
@@ -174,33 +170,5 @@ class SyncManager @Inject constructor(
             ExistingPeriodicWorkPolicy.KEEP,
             periodicSyncRequest
         )
-    }
-
-    fun cancelPatientSync() {
-        Log.d(TAG, "❌ Cancelling patient sync work...")
-        workManager.cancelUniqueWork(PatientSyncWorker.WORK_NAME)
-        workManager.cancelUniqueWork("${PatientSyncWorker.WORK_NAME}_periodic")
-    }
-
-    // ===== СОСТОЯНИЕ СИНХРОНИЗАЦИИ =====
-
-    fun getSyncStatus(): LiveData<List<WorkInfo>> {
-        return workManager.getWorkInfosByTagLiveData("sync")
-    }
-
-    fun isSyncing(): Boolean {
-        val visitWorkInfos = workManager.getWorkInfosForUniqueWork(VisitSyncWorker.WORK_NAME)
-        val protocolWorkInfos = workManager.getWorkInfosForUniqueWork(ProtocolSyncWorker.WORK_NAME)
-        val patientWorkInfos = workManager.getWorkInfosForUniqueWork(PatientSyncWorker.WORK_NAME)
-
-        return try {
-            val visitSyncing = visitWorkInfos.get().any { it.state == WorkInfo.State.RUNNING }
-            val protocolSyncing = protocolWorkInfos.get().any { it.state == WorkInfo.State.RUNNING }
-            val patientSyncing = patientWorkInfos.get().any { it.state == WorkInfo.State.RUNNING }
-            visitSyncing || protocolSyncing || patientSyncing
-        } catch (e: Exception) {
-            Log.w(TAG, "Error checking sync status: ${e.message}")
-            false
-        }
     }
 }

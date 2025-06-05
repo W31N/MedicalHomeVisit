@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
@@ -38,8 +38,6 @@ fun VisitDetailScreen(
 ) {
     val visitState by viewModel.uiState.collectAsState()
     val patientState by viewModel.patientState.collectAsState()
-    // val originalRequestState by viewModel.originalRequest.collectAsState() // Если нужно отображать
-    // val isOffline by viewModel.isOffline.collectAsState() // Если нужно отображать статус
 
     val context = LocalContext.current
 
@@ -49,7 +47,7 @@ fun VisitDetailScreen(
                 title = { Text("Детали визита") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -72,7 +70,7 @@ fun VisitDetailScreen(
                 }
                 is VisitDetailUiState.Success -> {
                     val visit = vState.visit
-                    val patient = when (val pState = patientState) { // Изменил на val pState
+                    val patient = when (val pState = patientState) {
                         is PatientState.Success -> pState.patient
                         else -> null
                     }
@@ -109,7 +107,7 @@ fun VisitDetailScreen(
                             viewModel.updateVisitStatus(newStatus)
                         },
                         onCreateProtocol = {
-                            if (viewModel.canCreateProtocol()) { // Добавим проверку
+                            if (viewModel.canCreateProtocol()) {
                                 onNavigateToProtocol(visit.id)
                             }
                         }
@@ -140,11 +138,10 @@ fun VisitDetailScreen(
                 }
             }
 
-            // Отображение ошибки загрузки пациента, если она есть и визит загружен
             if (visitState is VisitDetailUiState.Success && patientState is PatientState.Error) {
                 Column(
                     modifier = Modifier
-                        .align(Alignment.Center) // Или другое подходящее место
+                        .align(Alignment.Center)
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -184,7 +181,6 @@ fun VisitDetailContent(
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Статус и время визита
         Card(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -253,7 +249,7 @@ fun VisitDetailContent(
                                 onClick = { onCreateProtocol() },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Просмотреть/Изменить протокол") // Изменено
+                                Text("Просмотреть/Изменить протокол")
                             }
                         }
                         VisitStatus.CANCELLED -> {
@@ -264,7 +260,6 @@ fun VisitDetailContent(
             }
         }
 
-        // Информация о пациенте
         Card(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -282,7 +277,6 @@ fun VisitDetailContent(
                     InfoRow(title = "ФИО:", value = patient.fullName)
                     InfoRow(
                         title = "Дата рождения:",
-                        // Проверяем, что dateOfBirth не null перед форматированием
                         value = patient.dateOfBirth?.let { "${dateFormatter.format(it)} (${patient.age ?: "возраст не указан"})" } ?: "Не указана"
                     )
                     InfoRow(
@@ -290,7 +284,7 @@ fun VisitDetailContent(
                         value = when (patient.gender) {
                             Gender.MALE -> "Мужской"
                             Gender.FEMALE -> "Женский"
-                            Gender.UNKNOWN -> "Не указан" // Обработка UNKNOWN
+                            Gender.UNKNOWN -> "Не указан"
                         }
                     )
                     InfoRow(title = "Номер полиса:", value = patient.policyNumber.ifBlank { "Не указан" })
@@ -323,14 +317,11 @@ fun VisitDetailContent(
                         Text("Позвонить пациенту (${patient.phoneNumber})")
                     }
                 } else {
-                    // Это состояние обычно обрабатывается в VisitDetailScreen через PatientState.Loading/Error
-                    // Но на всякий случай оставим здесь заглушку или сообщение
                     Text("Данные пациента загружаются или отсутствуют...")
                 }
             }
         }
 
-        // Адрес и причина визита
         Card(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -339,7 +330,7 @@ fun VisitDetailContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Детали вызова", // Изменено для ясности
+                    text = "Детали вызова",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -347,11 +338,9 @@ fun VisitDetailContent(
                 InfoRow(title = "Причина визита:", value = visit.reasonForVisit.ifBlank { "Не указана" })
                 InfoRow(title = "Адрес:", value = visit.address.ifBlank { "Не указан" })
 
-                // Отображаем visit.notes только если они не пустые
                 if (visit.notes.isNotBlank()) {
                     InfoRow(title = "Примечания к визиту:", value = visit.notes)
                 }
-
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -369,7 +358,6 @@ fun VisitDetailContent(
     }
 }
 
-// InfoRow остается без изменений
 @Composable
 fun InfoRow(title: String, value: String) {
     Row(
@@ -381,7 +369,7 @@ fun InfoRow(title: String, value: String) {
             text = title,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.width(180.dp) // Можно настроить ширину
+            modifier = Modifier.width(180.dp)
         )
         Text(
             text = value,

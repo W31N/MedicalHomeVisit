@@ -10,11 +10,9 @@ import com.example.medicalhomevisit.domain.model.User
 import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
 import com.example.medicalhomevisit.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import java.util.Date
 import javax.inject.Inject
@@ -29,7 +27,7 @@ class PatientViewModel @Inject constructor(
         private const val TAG = "PatientViewModel"
     }
 
-    private val _uiState = MutableStateFlow<PatientUiState>(PatientUiState.Initial) // Начальное состояние
+    private val _uiState = MutableStateFlow<PatientUiState>(PatientUiState.Initial)
     val uiState: StateFlow<PatientUiState> = _uiState.asStateFlow()
 
     private val _user = MutableStateFlow<User?>(null)
@@ -46,11 +44,9 @@ class PatientViewModel @Inject constructor(
                 _user.value = userValue
                 if (userValue != null) {
                     loadMyRequestsInternal()
-//                    observeRequests(userValue.id)
                 } else {
-                    // Если пользователь вышел, очищаем заявки и состояние
                     _requests.value = emptyList()
-                    _uiState.value = PatientUiState.NotLoggedIn // или другое подходящее состояние
+                    _uiState.value = PatientUiState.NotLoggedIn
                     Log.d(TAG, "User logged out, cleared requests.")
                 }
             }
@@ -58,12 +54,12 @@ class PatientViewModel @Inject constructor(
     }
 
 
-    private fun loadMyRequestsInternal() { // patientId больше не нужен как параметр
+    private fun loadMyRequestsInternal() {
         Log.d(TAG, "loadMyRequestsInternal called for current patient")
         _uiState.value = PatientUiState.Loading
         viewModelScope.launch {
             try {
-                val result = appointmentRequestRepository.getMyRequests() // <--- ИЗМЕНЕНИЕ ЗДЕСЬ
+                val result = appointmentRequestRepository.getMyRequests()
                 if (result.isSuccess) {
                     val patientRequests = result.getOrNull() ?: emptyList()
                     _requests.value = patientRequests
@@ -77,7 +73,7 @@ class PatientViewModel @Inject constructor(
                     val errorMsg = result.exceptionOrNull()?.message ?: "Ошибка загрузки моих заявок"
                     Log.e(TAG, "Error loading my requests: $errorMsg", result.exceptionOrNull())
                     _uiState.value =
-                        PatientUiState.Error(errorMsg) // Сообщение об ошибке может измениться
+                        PatientUiState.Error(errorMsg)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Exception in loadMyRequestsInternal", e)
@@ -88,51 +84,10 @@ class PatientViewModel @Inject constructor(
     }
 
 
-
-
-
-    private fun loadRequests(patientId: String) {
-        Log.d(TAG, "loadRequests called for patientId: $patientId")
-        _uiState.value = PatientUiState.Loading
-        viewModelScope.launch {
-            try {
-                val result = appointmentRequestRepository.getRequestsForPatient(patientId)
-                if (result.isSuccess) {
-                    val patientRequests = result.getOrNull() ?: emptyList()
-                    _requests.value = patientRequests // Предполагается, что репозиторий возвращает отсортированный список
-                    _uiState.value = if (patientRequests.isEmpty()) {
-                        PatientUiState.Empty
-                    } else {
-                        PatientUiState.Success(patientRequests)
-                    }
-                    Log.d(TAG, "Requests loaded successfully: ${patientRequests.size} items")
-                } else {
-                    val errorMsg = result.exceptionOrNull()?.message ?: "Ошибка загрузки заявок"
-                    Log.e(TAG, "Error loading patient requests: $errorMsg", result.exceptionOrNull())
-                    _uiState.value = PatientUiState.Error(errorMsg)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception in loadRequests", e)
-                _uiState.value =
-                    PatientUiState.Error(e.message ?: "Непредвиденная ошибка загрузки запросов")
-            }
-        }
-    }
-
-     fun observeRequestsForPatient(patientId: String): Flow<List<AppointmentRequest>> {
-        Log.w(TAG, "observeRequestsForPatient for patientId $patientId - Using STUB implementation (returns empty flow). Needs proper implementation if used or ViewModel logic adjustment.")
-        // Эта заглушка позволит коду компилироваться и работать, но не будет предоставлять реальных данных
-        // для заявок произвольного пациента в реальном времени.
-        return flowOf(emptyList()) // Возвращаем пустой поток данных
-    }
-
-
     fun createNewRequest(
         requestType: RequestType,
         symptoms: String,
-        // Имя параметра preferredDate соответствует вызову из CreateRequestScreen
         preferredDate: Date?,
-        // preferredTimeRange принимаем, но не используем, т.к. нет в доменной модели AppointmentRequest
         @Suppress("UNUSED_PARAMETER") preferredTimeRange: String?,
         address: String,
         additionalNotes: String? = ""
@@ -150,7 +105,7 @@ class PatientViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val newRequest = AppointmentRequest(
-                    id = "", // Будет присвоен на бэкенде
+                    id = "",
                     patientId = "",
                     patientName = currentUser.displayName.ifEmpty { "Пациент" },
                     patientPhone = "Не указан",
@@ -158,9 +113,8 @@ class PatientViewModel @Inject constructor(
                     requestType = requestType,
                     symptoms = symptoms,
                     additionalNotes = additionalNotes ?: "",
-                    preferredDateTime = preferredDate, // Присваиваем параметр preferredDate полю preferredDateTime модели
+                    preferredDateTime = preferredDate,
                     status = RequestStatus.NEW
-                    // Поле preferredTimeRange отсутствует в модели AppointmentRequest, поэтому не устанавливаем его
                 )
                 Log.d(TAG, "Constructed AppointmentRequest model: $newRequest")
 
@@ -169,10 +123,6 @@ class PatientViewModel @Inject constructor(
                 if (result.isSuccess) {
                     val createdRequest = result.getOrNull()
                     Log.d(TAG, "Request created successfully on backend: ${createdRequest?.id}")
-                    // Репозиторий createRequest уже обновляет _myRequestsFlow,
-                    // loadRequests() перезагрузит все заявки, включая новую.
-                    // Если createRequest возвращает созданную заявку, можно ее добавить в _requests вручную,
-                    // чтобы избежать лишнего запроса getRequestsForPatient, но loadRequests проще.
                     loadMyRequestsInternal()
                     _uiState.value = PatientUiState.RequestCreated(createdRequest)
                 } else {
@@ -216,15 +166,6 @@ class PatientViewModel @Inject constructor(
         }
     }
 
-    fun resetUiStateToDefault() {
-        Log.d(TAG, "resetUiStateToDefault called. Current requests count: ${_requests.value.size}")
-        if (_requests.value.isNotEmpty()) {
-            _uiState.value = PatientUiState.Success(_requests.value)
-        } else {
-            _uiState.value = PatientUiState.Empty
-        }
-    }
-
     fun refreshRequests() {
         val currentUserId = _user.value?.id
         if (currentUserId != null) {
@@ -233,19 +174,18 @@ class PatientViewModel @Inject constructor(
         } else {
             Log.w(TAG, "Cannot refresh requests, user is null.")
             _requests.value = emptyList()
-            _uiState.value = PatientUiState.NotLoggedIn // или Initial
+            _uiState.value = PatientUiState.NotLoggedIn
         }
     }
 }
 
-// Обновляем PatientUiState для большей информативности
 sealed class PatientUiState {
-    object Initial : PatientUiState() // Добавим начальное состояние
+    object Initial : PatientUiState()
     object Loading : PatientUiState()
-    data class Success(val requests: List<AppointmentRequest>) : PatientUiState() // Теперь Success хранит данные
+    data class Success(val requests: List<AppointmentRequest>) : PatientUiState()
     object Empty : PatientUiState()
-    data class RequestCreated(val createdRequest: AppointmentRequest?) : PatientUiState() // Может содержать созданную заявку
+    data class RequestCreated(val createdRequest: AppointmentRequest?) : PatientUiState()
     object RequestCancelled : PatientUiState()
-    object NotLoggedIn : PatientUiState() // Для случая, когда пользователь не вошел
+    object NotLoggedIn : PatientUiState()
     data class Error(val message: String) : PatientUiState()
 }

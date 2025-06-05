@@ -15,8 +15,7 @@ data class ProtocolTemplateEntity(
     @ColumnInfo(typeAffinity = ColumnInfo.TEXT) val anamnesisTemplate: String?,
     @ColumnInfo(typeAffinity = ColumnInfo.TEXT) val objectiveStatusTemplate: String?,
     @ColumnInfo(typeAffinity = ColumnInfo.TEXT) val recommendationsTemplate: String?,
-    val requiredVitals: List<String> = emptyList(), // Потребует TypeConverter
-
+    val requiredVitals: List<String> = emptyList(),
     var createdAt: Date,
     var updatedAt: Date
 )

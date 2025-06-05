@@ -15,7 +15,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,51 +101,18 @@ fun AppNavigation() {
     val authViewModel: AuthViewModel = hiltViewModel()
     val authState by authViewModel.uiState.collectAsState()
 
-    var hasNavigatedFromSplash by rememberSaveable { mutableStateOf(false) }
-
-
-//    LaunchedEffect(authState) {
-//        val currentAuthState = authState // Захватываем текущее состояние
-//        Log.d("AppNavigation", "AuthState CHANGED to: $currentAuthState")
-//        when (currentAuthState) {
-//            is AuthUiState.LoggedIn -> {
-//                Log.d("AppNavigation", "LoggedIn detected - User: ${currentAuthState.user.email}, Role: ${currentAuthState.user.role}")
-//            }
-//            is AuthUiState.Error -> {
-//                Log.d("AppNavigation", "Error state: ${currentAuthState.message}")
-//            }
-//            else -> {
-//                Log.d("AppNavigation", "Other state: $currentAuthState")
-//            }
-//        }
-//    }
-
-    val screenAccessMap = mapOf(
-        Screen.Login.route to null,
-        Screen.SignUp.route to null,
-        Screen.Profile.route to null,
-        PatientNavGraph.route to listOf(UserRole.PATIENT), // Доступ к самому графу пациента
-        AdminNavGraph.route to listOf(UserRole.ADMIN, UserRole.DISPATCHER), // Доступ к самому графу админа
-        Screen.VisitList.route to listOf(UserRole.MEDICAL_STAFF, UserRole.DISPATCHER),
-        Screen.VisitDetail.route to listOf(UserRole.MEDICAL_STAFF, UserRole.DISPATCHER),
-        Screen.Protocol.route to listOf(UserRole.MEDICAL_STAFF, UserRole.DISPATCHER),
-    )
-
     NavHost(
         navController = navController,
         startDestination = Screen.SplashScreen.route
     ) {
-        // Замените ваш SplashScreen composable на этот:
         composable(Screen.SplashScreen.route) {
             SplashScreen()
             Log.d("AppNavigation", "SplashScreen composable - Current authState: $authState")
             LaunchedEffect(authState) {
                 Log.d("AppNavigation", "SplashScreen LaunchedEffect triggered with authState: $authState")
 
-                // Создаем локальную переменную для smart cast
                 val currentState = authState
 
-                // Убираем проверку hasNavigatedFromSplash - пусть навигация происходит естественно
                 val destination: String? = when (currentState) {
                     is AuthUiState.LoggedIn -> {
                         Log.d("AppNavigation", "User logged in with role: ${currentState.user.role}")
@@ -201,14 +167,12 @@ fun AppNavigation() {
         }
 
         composable(Screen.Login.route) {
-            Log.d("AppNavigation", "🔐 Login screen composable")
-            // Убираем сброс флага hasNavigatedFromSplash здесь
+            Log.d("AppNavigation", "Login screen composable")
             LoginScreen(
                 viewModel = authViewModel,
                 onAuthSuccessful = {
                     Log.d("AppNavigation", "Login successful callback triggered")
 
-                    // Добавляем навигацию после успешной авторизации
                     val currentAuthState = authViewModel.uiState.value
                     if (currentAuthState is AuthUiState.LoggedIn) {
                         val destination = when (currentAuthState.user.role) {
@@ -238,24 +202,6 @@ fun AppNavigation() {
                     navController.navigate(Screen.SignUp.route)
                 }
             )
-
-//            LaunchedEffect(authState) {
-//                val currentState = authState
-//                if (currentState is AuthUiState.LoggedIn) {
-//                    Log.d("AppNavigation", "AuthState changed to LoggedIn in LoginScreen")
-//                    val destination = when (currentState.user.role) {
-//                        UserRole.PATIENT -> PatientNavGraph.route
-//                        UserRole.ADMIN, UserRole.DISPATCHER -> AdminNavGraph.route
-//                        UserRole.MEDICAL_STAFF -> Screen.VisitList.route
-//                    }
-//
-//                    Log.d("AppNavigation", "Auto-navigating to: $destination")
-//                    navController.navigate(destination) {
-//                        popUpTo(Screen.Login.route) { inclusive = true }
-//                        launchSingleTop = true
-//                    }
-//                }
-//            }
         }
 
         composable(Screen.SignUp.route) {
@@ -273,11 +219,11 @@ fun AppNavigation() {
             )
         }
 
-        patientGraph(navController, authViewModel, authState, screenAccessMap)
+        patientGraph(navController)
 
 
         Log.d("AppNavigation", "Setting up admin graph")
-        adminGraph(navController, authViewModel, authState, screenAccessMap)
+        adminGraph(navController)
 
         composable(Screen.VisitList.route) {
             ImprovedAuthProtectedScreen(
@@ -285,7 +231,7 @@ fun AppNavigation() {
                 authState = authState,
                 navController = navController
             ) {
-                val viewModel: VisitListViewModel = hiltViewModel() // ✅ Только VisitListViewModel
+                val viewModel: VisitListViewModel = hiltViewModel()
                 VisitListScreen(
                     viewModel = viewModel,
                     onVisitClick = { navController.navigate(Screen.VisitDetail.createRoute(it.id)) },
@@ -332,12 +278,12 @@ fun AppNavigation() {
 
         composable(Screen.Profile.route) {
             ImprovedAuthProtectedScreen(
-                requiredRoles = null, // Доступно всем
+                requiredRoles = null,
                 authState = authState,
                 navController = navController
             ) {
                 ProfileScreen(
-                    viewModel = authViewModel, // ✅ Только AuthViewModel
+                    viewModel = authViewModel,
                     navController = navController,
                     onNavigateBack = { navController.popBackStack() },
                     onSignOut = {
@@ -355,9 +301,6 @@ fun AppNavigation() {
 
 fun NavGraphBuilder.adminGraph(
     navController: NavHostController,
-    authViewModelPassed: AuthViewModel,
-    authStatePassed: AuthUiState,
-    screenAccessMapPassed: Map<String, List<UserRole>?>
 ) {
     Log.d("AppNavigation", "Building admin navigation graph")
 
@@ -444,7 +387,6 @@ fun NavGraphBuilder.adminGraph(
                     }
                 )
             } else {
-                // ИЗМЕНЕНИЕ: Улучшенная обработка случая, когда заявка не найдена
                 LaunchedEffect(Unit) {
                     Log.d("AppNavigation", "Request not found, refreshing data and navigating back")
                     adminViewModel.refreshData()
@@ -485,10 +427,7 @@ fun NavGraphBuilder.adminGraph(
 }
 
 fun NavGraphBuilder.patientGraph(
-    navController: NavHostController,
-    authViewModelPassed: AuthViewModel,
-    authStatePassed: AuthUiState,
-    screenAccessMapPassed: Map<String, List<UserRole>?>
+    navController: NavHostController
 ) {
     navigation(
         startDestination = Screen.PatientHome.route,
@@ -510,7 +449,6 @@ fun NavGraphBuilder.patientGraph(
             )
         }
 
-        // ДОБАВИТЬ в patient graph (в функции patientGraph):
         composable(Screen.PatientProfile.route) { navBackStackEntry ->
             val patientProfileViewModel: PatientProfileViewModel = hiltViewModel(
                 remember(navBackStackEntry) {
@@ -586,15 +524,6 @@ fun SplashScreen() {
         CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
     }
 }
-
-
-@Composable
-fun AuthProtectedScreen(
-    requiredRoles: List<UserRole>?,
-    authState: AuthUiState,
-    navController: androidx.navigation.NavController,
-    content: @Composable () -> Unit
-) = ImprovedAuthProtectedScreen(requiredRoles, authState, navController, content)
 
 @Composable
 fun ImprovedAuthProtectedScreen(

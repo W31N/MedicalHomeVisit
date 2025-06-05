@@ -6,6 +6,7 @@
     import androidx.compose.foundation.text.KeyboardOptions
     import androidx.compose.foundation.verticalScroll
     import androidx.compose.material.icons.Icons
+    import androidx.compose.material.icons.automirrored.filled.ArrowBack
     import androidx.compose.material.icons.filled.*
     import androidx.compose.material3.*
     import androidx.compose.runtime.*
@@ -35,7 +36,6 @@
 
         var selectedStaff by remember { mutableStateOf<MedicalStaffDisplay?>(null) }
         var assignmentNote by remember { mutableStateOf("") }
-        selectedStaff
         val dateFormatter = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()) }
 
         LaunchedEffect(uiState) {
@@ -45,17 +45,13 @@
             }
         }
 
-//        LaunchedEffect(Unit) {
-//            viewModel.refreshData()
-//        }
-
         Scaffold(
             topBar = {
                 TopAppBar(
                     title = { Text("Назначение врача") },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -95,7 +91,6 @@
                             style = MaterialTheme.typography.bodyMedium
                         )
 
-                        // ИСПРАВЛЕНО: request.preferredDate -> request.preferredDateTime
                         request.preferredDateTime?.let { dateTime ->
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
@@ -110,7 +105,7 @@
                             style = MaterialTheme.typography.bodyMedium
                         )
 
-                        if (request.additionalNotes != null) {
+                        if (request.additionalNotes.isNotBlank()) {
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Дополнительно: ${request.additionalNotes}",
@@ -217,9 +212,8 @@
                         selectedStaff?.let { staff ->
                             viewModel.assignRequestToStaff(
                                 requestId = request.id,
-                                staffId = staff.medicalPersonId, // Это должен быть ID из MedicalPersonDto.medicalPersonId
-                                // staffName больше не передаем
-                                assignmentNote = assignmentNote.ifBlank { null } // ИСПРАВЛЕНО: имя параметра
+                                staffId = staff.medicalPersonId,
+                                assignmentNote = assignmentNote.ifBlank { null }
                             )
                         }
                     },

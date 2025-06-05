@@ -1,10 +1,10 @@
-// com/example/medicalhomevisit/ui/auth/SignUpScreen.kt
 package com.example.medicalhomevisit.presentation.ui.auth
 
 import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,7 +35,6 @@ fun SignUpScreen(
     var isConfirmPasswordVisible by remember { mutableStateOf(false) }
     var passwordsDoNotMatch by remember { mutableStateOf(false) }
 
-    // Наблюдаем за состоянием авторизации
     LaunchedEffect(uiState) {
         when (uiState) {
             is AuthUiState.LoggedIn -> {
@@ -44,7 +43,7 @@ fun SignUpScreen(
             }
             is AuthUiState.RegistrationSuccessful -> {
                 Log.d("SignUpScreen", "Registration successful but not logged in, navigating...")
-                onAuthSuccessful() // Также вызываем навигацию
+                onAuthSuccessful()
             }
             else -> {}
         }
@@ -56,7 +55,7 @@ fun SignUpScreen(
                 title = { Text("Регистрация") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

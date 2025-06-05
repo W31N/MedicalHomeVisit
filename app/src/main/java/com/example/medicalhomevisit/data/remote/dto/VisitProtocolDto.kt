@@ -2,9 +2,6 @@ package com.example.medicalhomevisit.data.remote.dto
 
 import java.util.Date
 
-/**
- * DTO для протокола визита (соответствует бэкенду)
- */
 data class VisitProtocolDto(
     val id: String? = null,
     val visitId: String,
@@ -24,9 +21,6 @@ data class VisitProtocolDto(
     val updatedAt: Date? = null
 )
 
-/**
- * DTO для шаблона протокола
- */
 data class ProtocolTemplateDto(
     val id: String,
     val name: String,
@@ -40,27 +34,6 @@ data class ProtocolTemplateDto(
     val updatedAt: Date? = null
 )
 
-/**
- * Запрос на применение шаблона
- */
 data class ApplyTemplateRequest(
     val templateId: String
-)
-
-/**
- * Запрос на обновление поля протокола
- */
-data class ProtocolFieldUpdateRequest(
-    val field: String,
-    val value: String
-)
-
-/**
- * Запрос на обновление витальных показателей
- */
-data class ProtocolVitalsUpdateRequest(
-    val temperature: Float? = null,
-    val systolicBP: Int? = null,
-    val diastolicBP: Int? = null,
-    val pulse: Int? = null
 )

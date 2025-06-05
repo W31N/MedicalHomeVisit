@@ -1,7 +1,5 @@
 package com.example.medicalhomevisit.domain.model
 
-import java.util.Date
-
 data class ProtocolTemplate(
     val id: String,
     val name: String,

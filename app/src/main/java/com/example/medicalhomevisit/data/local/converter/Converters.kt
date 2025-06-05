@@ -17,7 +17,6 @@ class Converters {
         return date?.time
     }
 
-    // Для Map<String, String>
     @TypeConverter
     fun fromStringMap(value: String?): Map<String, String>? {
         if (value == null) {
@@ -32,7 +31,6 @@ class Converters {
         return Gson().toJson(map)
     }
 
-    // Для List<String>
     @TypeConverter
     fun fromStringList(value: String?): List<String>? {
         if (value == null) {

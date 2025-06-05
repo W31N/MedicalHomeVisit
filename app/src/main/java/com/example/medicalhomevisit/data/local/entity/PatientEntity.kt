@@ -8,22 +8,19 @@ import java.util.Date
 data class PatientEntity(
     @PrimaryKey
     val id: String,
-
     val fullName: String,
     val dateOfBirth: Date? = null,
     val age: Int? = null,
-    val gender: String? = null, // "MALE", "FEMALE", "UNKNOWN"
+    val gender: String? = null,
     val address: String = "",
     val phoneNumber: String = "",
     val policyNumber: String = "",
-    val allergies: List<String>? = null, // Требует TypeConverter
-    val chronicConditions: List<String>? = null, // Требует TypeConverter
-
+    val allergies: List<String>? = null,
+    val chronicConditions: List<String>? = null,
     val createdAt: Date = Date(),
     val updatedAt: Date = Date(),
 
-    // Поля для синхронизации
     val isSynced: Boolean = true,
-    val syncAction: String? = null, // "CREATE", "UPDATE", "DELETE"
+    val syncAction: String? = null,
     val lastSyncAttempt: Date? = null
 )

@@ -1,4 +1,4 @@
-package com.example.medicalhomevisit.data.remote.dto // или ваш пакет
+package com.example.medicalhomevisit.data.remote.dto
 
 data class LoginResponseDto(
     val token: String,

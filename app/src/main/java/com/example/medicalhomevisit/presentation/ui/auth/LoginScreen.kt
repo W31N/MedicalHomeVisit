@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import com.example.medicalhomevisit.presentation.viewmodel.AuthUiState
 import com.example.medicalhomevisit.presentation.viewmodel.AuthViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel,
@@ -37,20 +36,16 @@ fun LoginScreen(
     var emailFormatError by remember { mutableStateOf<String?>(null) }
     var showResetPasswordDialog by remember { mutableStateOf(false) }
 
-    // Наблюдаем за состоянием авторизации
     LaunchedEffect(uiState) {
         if (uiState is AuthUiState.LoggedIn) {
             onAuthSuccessful()
         }
-        // Сбрасываем подсказку, если появилась ошибка от ViewModel или другой успешный статус
         if (uiState !is AuthUiState.Initial) {
             showEmailPrompt = false
         }
-        // Сбрасываем ошибку формата email, если пришла другая ошибка от ViewModel
         if (uiState is AuthUiState.Error) {
             emailFormatError = null
         }
-        // Показываем диалог, когда получаем состояние PasswordResetSent
         if (uiState is AuthUiState.PasswordResetSent) {
             showResetPasswordDialog = true
         }
@@ -76,7 +71,7 @@ fun LoginScreen(
                 showEmailPrompt = false
                 emailFormatError = null
                 if (uiState is AuthUiState.Error && (uiState as AuthUiState.Error).message.startsWith("Email не может быть пустым")) {
-                    viewModel.resetError() // Сбрасываем ошибку, если она была из-за пустого email
+                    viewModel.resetError()
                                 }
                             },
             label = { Text("Email") },
@@ -124,13 +119,12 @@ fun LoginScreen(
                         viewModel.signIn(email, password)
                     } else {
                         emailFormatError = "Неверный формат email"
-                        viewModel.resetError() // Сбрасываем другие ошибки
+                        viewModel.resetError()
                     }
                 }
             }),
             singleLine = true
         )
-        // Область для отображения ошибок от ViewModel или подсказки про email
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -139,10 +133,10 @@ fun LoginScreen(
         ) {
             val currentError = emailFormatError ?: (uiState as? AuthUiState.Error)?.message
 
-            if (showEmailPrompt && currentError == null) { // Показываем подсказку только если нет других ошибок
+            if (showEmailPrompt && currentError == null) {
                 Text(
                     text = "Пожалуйста, введите email для сброса пароля.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, // Менее агрессивный цвет для подсказки
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -162,7 +156,7 @@ fun LoginScreen(
                 showEmailPrompt = false
                 if (!isValidEmail(email)) {
                     emailFormatError = "Неверный формат email"
-                    viewModel.resetError() // Сбрасываем другие ошибки
+                    viewModel.resetError()
                     return@Button
                 }
                 emailFormatError = null
@@ -190,29 +184,6 @@ fun LoginScreen(
             Text("Нет аккаунта? Зарегистрироваться")
         }
 
-//        TextButton(
-//            onClick = {
-//                if (email.isNotBlank()) {
-//                    if (!isValidEmail(email)) {
-//                        emailFormatError = "Неверный формат email"
-//                        showEmailPrompt = false
-//                        viewModel.resetError()
-//                        return@TextButton
-//                    }
-//                    emailFormatError = null
-//                    showEmailPrompt = false
-//                    viewModel.resetPassword(email)
-//                } else {
-//                    showEmailPrompt = true
-//                    emailFormatError = null
-//                    viewModel.resetError()
-//                }
-//            },
-//            modifier = Modifier.padding(top = 4.dp)
-//        ) {
-//            Text("Забыли пароль?")
-//        }
-
         if (uiState is AuthUiState.PasswordResetSent) {
             AlertDialog(
                 onDismissRequest = { viewModel.resetError() },
@@ -230,14 +201,14 @@ fun LoginScreen(
         AlertDialog(
             onDismissRequest = {
                 showResetPasswordDialog = false
-                viewModel.resetError() // Сбрасываем состояние в ViewModel
+                viewModel.resetError()
             },
             title = { Text("Сброс пароля") },
             text = { Text("Инструкции по сбросу пароля отправлены на указанный email.") },
             confirmButton = {
                 TextButton(onClick = {
                     showResetPasswordDialog = false
-                    viewModel.resetError() // Сбрасываем состояние в ViewModel
+                    viewModel.resetError()
                 }) {
                     Text("OK")
                 }

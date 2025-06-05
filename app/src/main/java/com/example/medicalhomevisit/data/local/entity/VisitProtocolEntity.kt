@@ -14,13 +14,13 @@ import java.util.Date
             entity = VisitEntity::class,
             parentColumns = ["id"],
             childColumns = ["visitId"],
-            onDelete = ForeignKey.CASCADE // или SET_NULL, в зависимости от логики
+            onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
             entity = ProtocolTemplateEntity::class,
             parentColumns = ["id"],
             childColumns = ["templateId"],
-            onDelete = ForeignKey.SET_NULL // Шаблон может быть удален, протокол останется
+            onDelete = ForeignKey.SET_NULL
         )
     ],
     indices = [Index(value = ["visitId"], unique = true), Index(value = ["templateId"])]
@@ -29,7 +29,6 @@ import java.util.Date
     @PrimaryKey val id: String,
     val visitId: String,
     val templateId: String?,
-
     @ColumnInfo(typeAffinity = ColumnInfo.TEXT) var complaints: String?,
     @ColumnInfo(typeAffinity = ColumnInfo.TEXT) var anamnesis: String?,
     @ColumnInfo(typeAffinity = ColumnInfo.TEXT) var objectiveStatus: String?,
@@ -41,13 +40,11 @@ import java.util.Date
     var diastolicBP: Int?,
     var pulse: Int?,
     var additionalVitals: Map<String, String> = emptyMap(), // Потребует TypeConverter
-
     var createdAt: Date,
     var updatedAt: Date,
 
-    // Поля для синхронизации
     var isSynced: Boolean = true,
-    var syncAction: String? = null, // "CREATE", "UPDATE", "DELETE"
+    var syncAction: String? = null,
     var lastSyncAttempt: Date? = null,
     var failCount: Int = 0
 )

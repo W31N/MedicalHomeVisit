@@ -3,12 +3,10 @@ package com.example.medicalhomevisit.data.remote.repository
 import android.util.Log
 import com.example.medicalhomevisit.data.remote.api.AppointmentApiService
 import com.example.medicalhomevisit.data.remote.dto.*
-import com.example.medicalhomevisit.data.remote.network.TokenManager
 import com.example.medicalhomevisit.domain.model.AppointmentRequest
 import com.example.medicalhomevisit.domain.model.RequestStatus
 import com.example.medicalhomevisit.domain.model.RequestType
 import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
-import com.example.medicalhomevisit.domain.repository.AuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,9 +16,7 @@ import java.util.Date
 import javax.inject.Inject
 
 class   AppointmentRequestRepositoryImpl @Inject constructor(
-    private val apiService: AppointmentApiService,
-    private val tokenManager: TokenManager,
-    private val authRepository: AuthRepository
+    private val apiService: AppointmentApiService
 ) : AppointmentRequestRepository {
 
     private val _myRequestsFlow = MutableStateFlow<List<AppointmentRequest>>(emptyList())
@@ -48,7 +44,7 @@ class   AppointmentRequestRepositoryImpl @Inject constructor(
                     Log.d(TAG, "Create request successful. Response DTO: $dto")
                     val createdRequest = convertDtoToModel(dto)
                     val currentRequests = _myRequestsFlow.value.toMutableList()
-                    currentRequests.add(0, createdRequest) // Добавляем в начало списка
+                    currentRequests.add(0, createdRequest)
                     _myRequestsFlow.value = currentRequests
                     Log.d(TAG, "Request created and mapped to domain model. ID: ${createdRequest.id}. Updated _myRequestsFlow.")
                     Result.success(createdRequest)
@@ -81,26 +77,26 @@ class   AppointmentRequestRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getMyRequests(): Result<List<AppointmentRequest>> {
-        Log.d(TAG, "getMyRequests() called.") // <-- ЛОГ: Начало метода
+        Log.d(TAG, "getMyRequests() called.")
         return withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Calling apiService.getMyRequests()") // <-- ЛОГ: Перед вызовом API
+                Log.d(TAG, "Calling apiService.getMyRequests()")
                 val response = apiService.getMyRequests()
-                Log.d(TAG, "getMyRequests API response: code=${response.code()}, isSuccessful=${response.isSuccessful}") // <-- ЛОГ: Ответ от API
+                Log.d(TAG, "getMyRequests API response: code=${response.code()}, isSuccessful=${response.isSuccessful}")
                 if (response.isSuccessful && response.body() != null) {
                     val dtoList = response.body()!!
-                    Log.d(TAG, "getMyRequests successful. Received ${dtoList.size} DTOs from backend.") // <-- ЛОГ: Количество DTO
+                    Log.d(TAG, "getMyRequests successful. Received ${dtoList.size} DTOs from backend.")
                     val requests = dtoList.map { convertDtoToModel(it) }
                         .sortedByDescending { it.createdAt }
-                    Log.d(TAG, "Mapped to ${requests.size} domain models.") // <-- ЛОГ: Количество доменных моделей
+                    Log.d(TAG, "Mapped to ${requests.size} domain models.")
 
-                    _myRequestsFlow.value = requests // Обновляем поток "моих" заявок
+                    _myRequestsFlow.value = requests
                     Log.d(TAG, "_myRequestsFlow updated with ${requests.size} items.")
                     Result.success(requests)
                 } else {
                     val errorBody = response.errorBody()?.string() ?: "Unknown error from backend"
-                    Log.e(TAG, "Error getting my requests: Code=${response.code()}, Body='$errorBody'") // <-- ЛОГ: Детали ошибки
-                    Result.failure(Exception("Ошибка загрузки заявок (код: ${response.code()})")) // Изменил сообщение для ясности
+                    Log.e(TAG, "Error getting my requests: Code=${response.code()}, Body='$errorBody'")
+                    Result.failure(Exception("Ошибка загрузки заявок (код: ${response.code()})"))
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Exception in getMyRequests", e)
@@ -179,7 +175,6 @@ class   AppointmentRequestRepositoryImpl @Inject constructor(
                 if (response.isSuccessful && response.body() != null) {
                     val updatedRequest = convertDtoToModel(response.body()!!)
 
-                    // Обновляем в локальном кэше
                     val currentRequests = _myRequestsFlow.value.toMutableList()
                     val index = currentRequests.indexOfFirst { it.id == requestId }
                     if (index >= 0) {
@@ -205,7 +200,6 @@ class   AppointmentRequestRepositoryImpl @Inject constructor(
                 if (response.isSuccessful && response.body() != null) {
                     val cancelledRequest = convertDtoToModel(response.body()!!)
 
-                    // Обновляем в локальном кэше
                     val currentRequests = _myRequestsFlow.value.toMutableList()
                     val index = currentRequests.indexOfFirst { it.id == requestId }
                     if (index >= 0) {
@@ -233,11 +227,10 @@ class   AppointmentRequestRepositoryImpl @Inject constructor(
         return _myRequestsFlow.asStateFlow()
     }
 
-    // Конвертация DTO в модель
     private fun convertDtoToModel(dto: AppointmentRequestDto): AppointmentRequest {
         return AppointmentRequest(
             id = dto.id,
-            patientId = dto.patientId ?: "",
+            patientId = dto.patientId,
             patientName = dto.patientName ?: "",
             patientPhone = dto.patientPhone ?: "",
             address = dto.address,

@@ -3,9 +3,9 @@ package com.example.medicalhomevisit.data.repository
 import android.util.Log
 import com.example.medicalhomevisit.data.local.dao.ProtocolTemplateDao
 import com.example.medicalhomevisit.data.local.entity.ProtocolTemplateEntity
-import com.example.medicalhomevisit.data.remote.api.ProtocolApiService // или отдельный TemplateApiService
+import com.example.medicalhomevisit.data.remote.api.ProtocolApiService
 import com.example.medicalhomevisit.data.remote.dto.ProtocolTemplateDto
-import com.example.medicalhomevisit.domain.model.ProtocolTemplate // Доменная модель
+import com.example.medicalhomevisit.domain.model.ProtocolTemplate
 import com.example.medicalhomevisit.domain.repository.ProtocolTemplateRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -18,8 +18,8 @@ import javax.inject.Singleton
 @Singleton
 class SimpleOfflineProtocolTemplateRepository @Inject constructor(
     private val protocolTemplateDao: ProtocolTemplateDao,
-    private val protocolApiService: ProtocolApiService // Используем тот же или создаем новый
-) : ProtocolTemplateRepository { // Реализуем твой новый интерфейс
+    private val protocolApiService: ProtocolApiService
+) : ProtocolTemplateRepository {
 
     companion object {
         private const val TAG = "OfflinePTemplateRepo"
@@ -32,18 +32,16 @@ class SimpleOfflineProtocolTemplateRepository @Inject constructor(
     }
 
     override suspend fun getAllTemplates(): List<ProtocolTemplate> {
-        // Можно добавить логику сначала из DAO, потом попытка с сервера, если DAO пусто
-        // Для простоты пока всегда пробуем обновить и возвращаем из DAO
-        refreshTemplates() // Попытка обновить перед возвратом
-        return protocolTemplateDao.getAllTemplates().map { entities -> // map здесь нужен если getAllTemplates возвращает Flow
+        refreshTemplates()
+        return protocolTemplateDao.getAllTemplates().map { entities ->
             entities.map { it.toDomainModel() }
-        }.firstOrNull() ?: emptyList() // Если getAllTemplates возвращает Flow<List>, иначе просто .map
+        }.firstOrNull() ?: emptyList()
     }
 
     override suspend fun refreshTemplates(): Result<Unit> {
         Log.d(TAG, "📡 Refreshing protocol templates from server...")
         return try {
-            val response = protocolApiService.getProtocolTemplates() // Используем метод из твоего ProtocolApiService
+            val response = protocolApiService.getProtocolTemplates()
             if (response.isSuccessful && response.body() != null) {
                 val templateDtos = response.body()!!
                 if (templateDtos.isNotEmpty()) {
@@ -52,13 +50,8 @@ class SimpleOfflineProtocolTemplateRepository @Inject constructor(
                     Log.d(TAG, "✅ Refreshed and saved ${templateEntities.size} templates to Room.")
                 } else {
                     Log.d(TAG, "✅ Server returned 0 templates. Local cache might be cleared if 'insertTemplates' handles empty list by deleting.")
-                    // Если insertTemplates не очищает старые при пустом списке, то нужно это сделать отдельно, если требуется.
-                    // Например, protocolTemplateDao.clearAllTemplates() перед insertTemplates(emptyList())
-                    // Но обычно OnConflictStrategy.REPLACE при пустом списке ничего не делает.
-                    // Если нужно очистить, если сервер вернул пусто:
-                    // protocolTemplateDao.clearAllAndInsert(templateEntities) // Потребуется такой метод в DAO
-                    protocolTemplateDao.insertTemplates(emptyList()) // Если нет логики очистки, а просто перезаписываем (если бы был один метод insertAllOrReplace)
-                    // Либо просто ничего не делаем, если сервер вернул пусто, а локально что-то есть
+                    protocolTemplateDao.insertTemplates(emptyList())
+
                 }
                 Result.success(Unit)
             } else {
@@ -74,7 +67,6 @@ class SimpleOfflineProtocolTemplateRepository @Inject constructor(
 
     override suspend fun getTemplateById(templateId: String): ProtocolTemplate? {
         return protocolTemplateDao.getTemplateById(templateId)?.toDomainModel()
-        // Опционально: если не найдено локально, можно попытаться загрузить с сервера и сохранить
     }
 
     override fun searchTemplates(query: String): Flow<List<ProtocolTemplate>> {
@@ -83,12 +75,11 @@ class SimpleOfflineProtocolTemplateRepository @Inject constructor(
         }
     }
 
-    // --- Необходимые мапперы ---
     private fun ProtocolTemplateEntity.toDomainModel(): ProtocolTemplate {
         return ProtocolTemplate(
             id = this.id,
             name = this.name,
-            description = this.description ?: "", // Если description в Entity null, используем ""
+            description = this.description ?: "",
             complaints = this.complaintsTemplate ?: "",
             anamnesis = this.anamnesisTemplate ?: "",
             objectiveStatus = this.objectiveStatusTemplate ?: "",
@@ -108,8 +99,8 @@ class SimpleOfflineProtocolTemplateRepository @Inject constructor(
             objectiveStatusTemplate = this.objectiveStatusTemplate,
             recommendationsTemplate = this.recommendationsTemplate,
             requiredVitals = this.requiredVitals ?: emptyList(),
-            createdAt = this.createdAt ?: currentDate, // Если с сервера может прийти null
-            updatedAt = this.updatedAt ?: currentDate  // Если с сервера может прийти null
+            createdAt = this.createdAt ?: currentDate,
+            updatedAt = this.updatedAt ?: currentDate
         )
     }
 }

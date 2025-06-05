@@ -9,7 +9,6 @@ import com.example.medicalhomevisit.data.remote.dto.PatientProfileUpdateDto
 import com.example.medicalhomevisit.domain.model.Gender
 import com.example.medicalhomevisit.domain.model.Patient
 import com.example.medicalhomevisit.domain.model.PatientProfileUpdate
-import com.example.medicalhomevisit.domain.repository.AuthRepository
 import com.example.medicalhomevisit.domain.repository.PatientRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -22,30 +21,24 @@ import javax.inject.Singleton
 @Singleton
 class SimpleOfflinePatientRepository @Inject constructor(
     private val patientDao: PatientDao,
-    private val patientApiService: PatientApiService,
-    private val authRepository: AuthRepository
+    private val patientApiService: PatientApiService
 ) : PatientRepository {
 
     companion object {
         private const val TAG = "OfflinePatientRepo"
     }
 
-    // ===== OFFLINE-FIRST: Всегда возвращаем данные из Room =====
-
     override suspend fun getPatientById(patientId: String): Patient {
         Log.d(TAG, "🔍 Getting patient by ID: $patientId")
 
-        // 1. Сначала проверяем локальную базу данных
         val localPatient = patientDao.getPatientById(patientId)?.toDomainModel()
 
         if (localPatient != null) {
             Log.d(TAG, "✅ Patient found in local database: ${localPatient.fullName}")
-            // В фоне пытаемся обновить с сервера
             tryRefreshPatientFromServer(patientId)
             return localPatient
         }
 
-        // 2. Если пациент не найден локально, синхронно загружаем с сервера
         Log.d(TAG, "📱 Patient not found locally, trying to load from server...")
 
         try {
@@ -54,7 +47,6 @@ class SimpleOfflinePatientRepository @Inject constructor(
                 val dto = response.body()!!
                 val patient = dto.toDomainModel()
 
-                // Сохраняем в локальную базу данных
                 val entity = dto.toEntity(isSynced = true)
                 patientDao.insertPatient(entity)
 
@@ -70,11 +62,9 @@ class SimpleOfflinePatientRepository @Inject constructor(
         }
     }
 
-    // В SimpleOfflinePatientRepository
     override fun observePatient(patientId: String): Flow<Patient> {
         Log.d(TAG, "👁️ Observing patient: $patientId")
 
-        // Запускаем обновление в фоне (если пациент уже есть в базе)
         tryRefreshPatientFromServer(patientId)
 
         return patientDao.observePatient(patientId).map { entity ->
@@ -87,15 +77,12 @@ class SimpleOfflinePatientRepository @Inject constructor(
 
         if (query.isBlank()) return emptyList()
 
-        // Сначала ищем локально
         val localResults = patientDao.searchPatients(query).map { entities ->
             entities.map { it.toDomainModel() }
         }
 
-        // В фоне обновляем с сервера
         trySearchPatientsOnServer(query)
 
-        // Возвращаем первый результат из Flow (локальные данные)
         return try {
             localResults.first()
         } catch (e: Exception) {
@@ -107,10 +94,8 @@ class SimpleOfflinePatientRepository @Inject constructor(
     override suspend fun getAllPatients(): List<Patient> {
         Log.d(TAG, "📋 Getting all patients")
 
-        // Сначала возвращаем локальные данные
         val localPatients = patientDao.getAllPatientsSync().map { it.toDomainModel() }
 
-        // В фоне обновляем с сервера
         tryRefreshAllPatientsFromServer()
 
         return localPatients
@@ -119,15 +104,12 @@ class SimpleOfflinePatientRepository @Inject constructor(
     override fun observePatients(): Flow<List<Patient>> {
         Log.d(TAG, "👁️ Observing all patients")
 
-        // Запускаем обновление в фоне
         tryRefreshAllPatientsFromServer()
 
         return patientDao.getAllPatients().map { entities ->
             entities.map { it.toDomainModel() }
         }
     }
-
-    // ===== ПРОФИЛЬ ПАЦИЕНТА =====
 
     override suspend fun getMyProfile(): Patient {
         Log.d(TAG, "👤 Getting my patient profile")
@@ -138,7 +120,6 @@ class SimpleOfflinePatientRepository @Inject constructor(
                 val dto = response.body()!!
                 val patient = dto.toDomainModel()
 
-                // Сохраняем в локальной базе
                 val entity = patient.toEntity(isSynced = true)
                 patientDao.insertPatient(entity)
 
@@ -172,7 +153,6 @@ class SimpleOfflinePatientRepository @Inject constructor(
                 val updatedDto = response.body()!!
                 val updatedPatient = updatedDto.toDomainModel()
 
-                // Обновляем в локальной базе
                 val entity = updatedPatient.toEntity(isSynced = true)
                 patientDao.insertPatient(entity)
 
@@ -186,8 +166,6 @@ class SimpleOfflinePatientRepository @Inject constructor(
             throw e
         }
     }
-
-    // ===== КЭШИРОВАНИЕ И СИНХРОНИЗАЦИЯ =====
 
     override suspend fun cachePatients(patients: List<Patient>) {
         val entities = patients.map { it.toEntity(isSynced = true) }
@@ -207,8 +185,6 @@ class SimpleOfflinePatientRepository @Inject constructor(
         return try {
             Log.d(TAG, "🔄 Manual patient sync requested")
 
-            // Здесь можно добавить синхронизацию несохраненных изменений
-            // Пока что просто обновляем данные с сервера
             tryRefreshAllPatientsFromServer()
 
             val patients = getCachedPatients()
@@ -219,10 +195,7 @@ class SimpleOfflinePatientRepository @Inject constructor(
         }
     }
 
-    // ===== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =====
-
     private fun tryRefreshPatientFromServer(patientId: String) {
-        // Запускаем в фоне, не блокируем UI
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             try {
                 Log.d(TAG, "📡 Refreshing patient $patientId from server")
@@ -275,8 +248,6 @@ class SimpleOfflinePatientRepository @Inject constructor(
             }
         }
     }
-
-    // ===== КОНВЕРТЕРЫ =====
 
     private fun PatientEntity.toDomainModel(): Patient {
         return Patient(
@@ -352,25 +323,5 @@ class SimpleOfflinePatientRepository @Inject constructor(
             isSynced = isSynced,
             syncAction = null
         )
-    }
-
-    // ===== МЕТОДЫ ДЛЯ ОТЛАДКИ =====
-
-    suspend fun getUnsyncedCount(): Int {
-        return try {
-            patientDao.getUnsyncedCount()
-        } catch (e: Exception) {
-            Log.w(TAG, "Error getting unsynced count: ${e.message}")
-            0
-        }
-    }
-
-    suspend fun getUnsyncedPatients(): List<Patient> {
-        return try {
-            patientDao.getUnsyncedPatients().map { it.toDomainModel() }
-        } catch (e: Exception) {
-            Log.w(TAG, "Error getting unsynced patients: ${e.message}")
-            emptyList()
-        }
     }
 }

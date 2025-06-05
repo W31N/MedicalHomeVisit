@@ -1,4 +1,3 @@
-// StatusFilter.kt
 package com.example.medicalhomevisit.presentation.ui.components
 
 import androidx.compose.material3.*
@@ -7,7 +6,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.medicalhomevisit.domain.model.VisitStatus
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatusFilter(
     selectedStatus: VisitStatus?,

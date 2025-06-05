@@ -7,7 +7,6 @@ import com.example.medicalhomevisit.domain.model.Gender
 import com.example.medicalhomevisit.data.remote.dto.PatientDto
 import com.example.medicalhomevisit.data.remote.dto.PatientProfileUpdateDto
 import com.example.medicalhomevisit.domain.model.PatientProfileUpdate
-import com.example.medicalhomevisit.domain.repository.AuthRepository
 import com.example.medicalhomevisit.domain.repository.PatientRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,15 +17,13 @@ import javax.inject.Singleton
 
 @Singleton
 class PatientRepositoryImpl @Inject constructor(
-    private val patientApiService: PatientApiService,
-    private val authRepository: AuthRepository
+    private val patientApiService: PatientApiService
 ) : PatientRepository {
 
     companion object {
         private const val TAG = "HttpPatientRepository"
     }
 
-    // Кэш для офлайн режима
     private val _cachedPatients = MutableStateFlow<List<Patient>>(emptyList())
     private val _patientsFlow = MutableStateFlow<List<Patient>>(emptyList())
 
@@ -34,7 +31,6 @@ class PatientRepositoryImpl @Inject constructor(
         return try {
             Log.d(TAG, "Getting patient by ID: $patientId")
 
-            // Сначала проверяем кэш
             val cachedPatient = getCachedPatientById(patientId)
             if (cachedPatient != null) {
                 Log.d(TAG, "Found patient in cache: $patientId")
@@ -47,7 +43,6 @@ class PatientRepositoryImpl @Inject constructor(
                 val patientDto = response.body() ?: throw Exception("Пациент не найден")
                 val patient = convertDtoToPatient(patientDto)
 
-                // Обновляем кэш
                 updatePatientInCache(patient)
 
                 Log.d(TAG, "Successfully loaded patient: $patientId")
@@ -76,7 +71,6 @@ class PatientRepositoryImpl @Inject constructor(
                 val patientDtos = response.body() ?: emptyList()
                 val patients = patientDtos.map { convertDtoToPatient(it) }
 
-                // Обновляем кэш найденными пациентами
                 updatePatientsInCache(patients)
 
                 Log.d(TAG, "Successfully found ${patients.size} patients")
@@ -100,7 +94,6 @@ class PatientRepositoryImpl @Inject constructor(
                 val patientDtos = response.body() ?: emptyList()
                 val patients = patientDtos.map { convertDtoToPatient(it) }
 
-                // Обновляем кэш
                 _cachedPatients.value = patients
                 _patientsFlow.value = patients
 
@@ -157,7 +150,6 @@ class PatientRepositoryImpl @Inject constructor(
                 val updatedPatientDto = response.body() ?: throw Exception("Ошибка обновления профиля")
                 val updatedPatient = convertDtoToPatient(updatedPatientDto)
 
-                // Обновляем кэш
                 updatePatientInCache(updatedPatient)
 
                 Log.d(TAG, "Successfully updated my patient profile")
@@ -208,9 +200,6 @@ class PatientRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Вспомогательная функция для обновления пациента в кэше
-     */
     private fun updatePatientInCache(patient: Patient) {
         val currentPatients = _cachedPatients.value.toMutableList()
         val index = currentPatients.indexOfFirst { it.id == patient.id }
@@ -225,9 +214,6 @@ class PatientRepositoryImpl @Inject constructor(
         _patientsFlow.value = currentPatients
     }
 
-    /**
-     * Вспомогательная функция для обновления нескольких пациентов в кэше
-     */
     private fun updatePatientsInCache(newPatients: List<Patient>) {
         val currentPatients = _cachedPatients.value.associateBy { it.id }.toMutableMap()
 
@@ -240,9 +226,6 @@ class PatientRepositoryImpl @Inject constructor(
         _patientsFlow.value = updatedList
     }
 
-    /**
-     * Конвертация DTO с сервера в доменную модель
-     */
     private fun convertDtoToPatient(dto: PatientDto): Patient {
         return Patient(
             id = dto.id,

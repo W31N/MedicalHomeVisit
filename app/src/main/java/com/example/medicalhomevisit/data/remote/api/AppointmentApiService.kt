@@ -13,7 +13,6 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface AppointmentApiService {
-
     @POST("api/appointment-requests")
     suspend fun createRequest(@Body request: CreateAppointmentRequestDto): Response<AppointmentRequestDto>
 

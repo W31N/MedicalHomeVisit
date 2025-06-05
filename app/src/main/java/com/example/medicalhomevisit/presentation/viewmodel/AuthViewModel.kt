@@ -4,11 +4,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.medicalhomevisit.domain.model.User
-import com.example.medicalhomevisit.domain.model.UserRole
 import com.example.medicalhomevisit.domain.repository.AuthRepository
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException // Импорт для конкретного исключения
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import dagger.hilt.android.lifecycle.HiltViewModel
-
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,12 +66,6 @@ class AuthViewModel @Inject constructor(
         }
 
         Log.d("AuthViewModel", "===== AuthViewModel INIT COMPLETE =====")
-    }
-
-    fun getCurrentUserRole(): UserRole? {
-        val role = _user.value?.role
-        Log.d("AuthViewModel", "getCurrentUserRole called, returning: $role")
-        return role
     }
 
     fun signIn(email: String, password: String) {
@@ -175,9 +167,7 @@ private fun getLocalizedErrorMessage(throwable: Throwable?): String {
     if (throwable == null) return "Неизвестная ошибка"
 
     return when {
-        // Обработка конкретных случаев Firebase Auth
         throwable is FirebaseAuthInvalidCredentialsException -> {
-            // Проверяем код ошибки или сообщение
             when {
                 throwable.message?.contains("INVALID_LOGIN_CREDENTIALS") == true ->
                     "Неверный email или пароль"

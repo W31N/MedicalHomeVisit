@@ -5,7 +5,6 @@ import com.example.medicalhomevisit.domain.model.User
 import java.util.Date
 
 interface AdminRepository {
-
     suspend fun registerNewPatient(
         email: String,
         password: String,
@@ -17,6 +16,5 @@ interface AdminRepository {
         medicalCardNumber: String?,
         additionalInfo: String?
     ): Result<User>
-
     suspend fun getActiveStaff(): Result<List<MedicalStaffDisplay>>
 }

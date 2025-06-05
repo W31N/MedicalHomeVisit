@@ -7,7 +7,6 @@ import com.example.medicalhomevisit.domain.model.VisitStatus
 import com.example.medicalhomevisit.data.remote.dto.VisitDto
 import com.example.medicalhomevisit.data.remote.dto.VisitNotesUpdateRequest
 import com.example.medicalhomevisit.data.remote.dto.VisitStatusUpdateRequest
-import com.example.medicalhomevisit.domain.repository.AuthRepository
 import com.example.medicalhomevisit.domain.repository.VisitRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,8 +18,7 @@ import javax.inject.Singleton
 
 @Singleton
 class VisitRepositoryImpl @Inject constructor(
-    private val apiService: VisitApiService,
-    private val authRepository: AuthRepository
+    private val apiService: VisitApiService
 ) : VisitRepository {
 
     companion object {
@@ -28,7 +26,6 @@ class VisitRepositoryImpl @Inject constructor(
         private val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     }
 
-    // Кэш для офлайн режима
     private val _cachedVisits = MutableStateFlow<List<Visit>>(emptyList())
     private val _visitsFlow = MutableStateFlow<List<Visit>>(emptyList())
 
@@ -41,7 +38,6 @@ class VisitRepositoryImpl @Inject constructor(
                 val visitDtos = response.body() ?: emptyList()
                 val visits = visitDtos.map { convertDtoToVisit(it) }
 
-                // Обновляем кэш
                 _cachedVisits.value = visits
                 _visitsFlow.value = visits
 
@@ -131,7 +127,6 @@ class VisitRepositoryImpl @Inject constructor(
             if (response.isSuccessful) {
                 Log.d(TAG, "Successfully updated visit status")
 
-                // Обновляем в локальном кэше
                 updateVisitInCache(visitId) { visit ->
                     visit.copy(status = newStatus)
                 }
@@ -154,7 +149,6 @@ class VisitRepositoryImpl @Inject constructor(
             if (response.isSuccessful) {
                 Log.d(TAG, "Successfully updated visit notes")
 
-                // Обновляем в локальном кэше
                 updateVisitInCache(visitId) { visit ->
                     visit.copy(notes = notes)
                 }
@@ -171,9 +165,7 @@ class VisitRepositoryImpl @Inject constructor(
     override suspend fun updateScheduledTime(visitId: String, scheduledTime: Date) {
         try {
             Log.d(TAG, "Updating visit scheduled time: $visitId")
-            // Здесь нужно будет добавить соответствующий метод в API если потребуется
 
-            // Обновляем в локальном кэше
             updateVisitInCache(visitId) { visit ->
                 visit.copy(scheduledTime = scheduledTime)
             }
@@ -189,7 +181,6 @@ class VisitRepositoryImpl @Inject constructor(
         try {
             Log.d(TAG, "Updating visit: ${visit.id}")
 
-            // Пока что обновляем только статус и заметки
             updateVisitStatus(visit.id, visit.status)
             if (visit.notes.isNotEmpty()) {
                 updateVisitNotes(visit.id, visit.notes)
@@ -204,13 +195,11 @@ class VisitRepositoryImpl @Inject constructor(
     }
 
     override suspend fun addUnplannedVisit(visit: Visit): Visit {
-        // Эта функция пока не реализована на backend
         Log.w(TAG, "addUnplannedVisit not implemented yet")
         throw UnsupportedOperationException("Добавление внеплановых визитов пока не поддерживается")
     }
 
     override suspend fun getVisitHistoryForPatient(patientId: String): List<Visit> {
-        // Эта функция пока не реализована на backend
         Log.w(TAG, "getVisitHistoryForPatient not implemented yet")
         return emptyList()
     }
@@ -240,9 +229,6 @@ class VisitRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Вспомогательная функция для обновления визита в кэше
-     */
     private fun updateVisitInCache(visitId: String, updateFn: (Visit) -> Visit) {
         val currentVisits = _cachedVisits.value.toMutableList()
         val index = currentVisits.indexOfFirst { it.id == visitId }
@@ -254,9 +240,6 @@ class VisitRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Конвертация DTO с сервера в доменную модель
-     */
     private fun convertDtoToVisit(dto: VisitDto): Visit {
         return Visit(
             id = dto.id,
@@ -276,8 +259,8 @@ class VisitRepositoryImpl @Inject constructor(
             actualEndTime = dto.actualEndTime,
             createdAt = dto.createdAt,
             updatedAt = dto.updatedAt,
-            isFromRequest = true, // Все визиты из backend создаются из заявок
-            originalRequestId = null // Можно добавить это поле в DTO если нужно
+            isFromRequest = true,
+            originalRequestId = null
         )
     }
 }

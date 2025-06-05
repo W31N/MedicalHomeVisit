@@ -8,7 +8,6 @@ import java.util.Date
 data class VisitEntity(
     @PrimaryKey
     val id: String,
-
     val patientId: String,
     val scheduledTime: Date,
     val status: String,
@@ -17,18 +16,14 @@ data class VisitEntity(
     val notes: String = "",
     val assignedStaffId: String? = null,
     val assignedStaffName: String? = null,
-
     val actualStartTime: Date? = null,
     val actualEndTime: Date? = null,
     val createdAt: Date = Date(),
     val updatedAt: Date = Date(),
-
-    // Связь с заявкой
     val isFromRequest: Boolean = false,
     val originalRequestId: String? = null,
 
-    // 🔑 КЛЮЧЕВЫЕ ПОЛЯ ДЛЯ OFFLINE:
     val isSynced: Boolean = true,
-    val syncAction: String? = null,      // "CREATE", "UPDATE", "DELETE" - что нужно сделать на сервере
+    val syncAction: String? = null,
     val lastSyncAttempt: Date? = null
 )

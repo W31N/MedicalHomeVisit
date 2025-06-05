@@ -44,11 +44,9 @@ class ProtocolViewModel @Inject constructor(
     private val _templates = MutableStateFlow<List<ProtocolTemplate>>(emptyList())
     val templates: StateFlow<List<ProtocolTemplate>> = _templates.asStateFlow()
 
-    // Текущий редактируемый протокол
     private val _protocolData = MutableStateFlow(ProtocolData())
     val protocolData: StateFlow<ProtocolData> = _protocolData.asStateFlow()
 
-    // Флаг офлайн режима
     private val _isOffline = MutableStateFlow(false)
     val isOffline: StateFlow<Boolean> = _isOffline.asStateFlow()
 
@@ -61,7 +59,6 @@ class ProtocolViewModel @Inject constructor(
     }
 
     private fun observeProtocolChanges() {
-        // Наблюдаем за изменениями протокола в реальном времени
         val offlineRepo = protocolRepository as? SimpleOfflineProtocolRepository
         if (offlineRepo != null) {
             viewModelScope.launch {
@@ -91,7 +88,6 @@ class ProtocolViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading visit: ${e.message}", e)
 
-                // Пробуем получить из кэша
                 try {
                     val cachedVisits = visitRepository.getCachedVisits()
                     val cachedVisit = cachedVisits.find { it.id == visitId }
@@ -116,12 +112,10 @@ class ProtocolViewModel @Inject constructor(
                 val protocol = protocolRepository.getProtocolForVisit(visitId)
 
                 if (protocol != null) {
-                    // Существующий протокол
                     Log.d(TAG, "Found existing protocol for visit $visitId")
                     updateProtocolDataFromDomain(protocol)
                     _uiState.value = ProtocolUiState.Editing
                 } else {
-                    // Новый протокол
                     Log.d(TAG, "Creating new protocol for visit $visitId")
                     _protocolData.value = ProtocolData(
                         id = "local_proto_${UUID.randomUUID()}",
@@ -134,7 +128,6 @@ class ProtocolViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading protocol: ${e.message}", e)
 
-                // В офлайн режиме пытаемся загрузить из кэша
                 try {
                     val cachedProtocol = protocolRepository.getCachedProtocolForVisit(visitId)
                     if (cachedProtocol != null) {
@@ -143,7 +136,6 @@ class ProtocolViewModel @Inject constructor(
                         _isOffline.value = true
                         Log.d(TAG, "Loaded protocol from cache (offline mode)")
                     } else {
-                        // Новый протокол в офлайн режиме
                         _protocolData.value = ProtocolData(
                             id = "local_proto_${UUID.randomUUID()}",
                             visitId = visitId
@@ -176,7 +168,6 @@ class ProtocolViewModel @Inject constructor(
     }
 
     fun updateProtocolField(field: ProtocolField, value: String) {
-        // Сначала обновляем локально для немедленного отклика UI
         val currentData = _protocolData.value
         _protocolData.value = when (field) {
             ProtocolField.COMPLAINTS -> currentData.copy(complaints = value)
@@ -187,7 +178,6 @@ class ProtocolViewModel @Inject constructor(
             ProtocolField.RECOMMENDATIONS -> currentData.copy(recommendations = value)
         }
 
-        // Затем сохраняем в репозиторий (с автоматической синхронизацией)
         viewModelScope.launch {
             try {
                 val fieldName = when (field) {
@@ -205,7 +195,6 @@ class ProtocolViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating field on server: ${e.message}", e)
                 _isOffline.value = true
-                // UI уже обновлен локально, данные будут синхронизированы позже
             }
         }
     }
@@ -257,7 +246,6 @@ class ProtocolViewModel @Inject constructor(
         }
         _protocolData.value = _protocolData.value.copy(additionalVitals = currentVitals)
 
-        // Для дополнительных витальных показателей сохраняем весь протокол
         saveProtocolInBackground()
     }
 
@@ -267,7 +255,6 @@ class ProtocolViewModel @Inject constructor(
                 Log.d(TAG, "Applying template $templateId")
                 val updatedProtocol = protocolRepository.applyTemplate(visitId, templateId)
 
-                // Обновляем локальные данные
                 updateProtocolDataFromDomain(updatedProtocol)
                 _isOffline.value = false
                 Log.d(TAG, "Template applied successfully")
@@ -275,7 +262,6 @@ class ProtocolViewModel @Inject constructor(
                 Log.e(TAG, "Error applying template: ${e.message}", e)
                 _isOffline.value = true
 
-                // Fallback: применяем шаблон локально
                 val template = _templates.value.find { it.id == templateId }
                 if (template != null) {
                     val currentData = _protocolData.value
@@ -286,7 +272,6 @@ class ProtocolViewModel @Inject constructor(
                         recommendations = template.recommendations.ifBlank { currentData.recommendations }
                     )
 
-                    // Сохраняем изменения
                     saveProtocolInBackground()
                     Log.d(TAG, "Template applied locally (offline mode)")
                 }
@@ -330,8 +315,6 @@ class ProtocolViewModel @Inject constructor(
                 Log.e(TAG, "Error saving protocol: ${e.message}", e)
                 _isOffline.value = true
 
-                // В офлайн режиме все равно помечаем как сохраненный
-                // Данные будут синхронизированы позже
                 _uiState.value = ProtocolUiState.Saved
             }
         }
@@ -376,7 +359,6 @@ class ProtocolViewModel @Inject constructor(
                 Log.d(TAG, "Syncing protocol data")
                 protocolRepository.syncProtocols()
 
-                // Перезагружаем данные после синхронизации
                 loadProtocolData()
                 loadTemplates()
 
@@ -395,14 +377,6 @@ class ProtocolViewModel @Inject constructor(
         loadTemplates()
     }
 
-    fun setEditingMode() {
-        if (_protocolData.value.id.isNotEmpty()) {
-            _uiState.value = ProtocolUiState.Editing
-        }
-    }
-
-    // ===== ОТЛАДОЧНЫЕ МЕТОДЫ =====
-
     fun getOfflineStats() {
         viewModelScope.launch {
             try {
@@ -411,7 +385,7 @@ class ProtocolViewModel @Inject constructor(
                     val unsyncedCount = repo.getUnsyncedCount()
                     val unsyncedProtocols = repo.getUnsyncedProtocols()
 
-                    Log.d(TAG, "📊 PROTOCOL OFFLINE STATS:")
+                    Log.d(TAG, "PROTOCOL OFFLINE STATS:")
                     Log.d(TAG, "   - Unsynced count: $unsyncedCount")
                     Log.d(TAG, "   - Unsynced protocols: ${unsyncedProtocols.map { it.id }}")
                     Log.d(TAG, "   - Current protocol visit: $visitId")
@@ -425,7 +399,7 @@ class ProtocolViewModel @Inject constructor(
 
     private fun updateProtocolDataFromDomain(protocol: VisitProtocol) {
         _protocolData.value = ProtocolData(
-            id = protocol.id ?: "",
+            id = protocol.id,
             visitId = protocol.visitId,
             complaints = protocol.complaints,
             anamnesis = protocol.anamnesis,
@@ -442,7 +416,6 @@ class ProtocolViewModel @Inject constructor(
     }
 }
 
-// Остальные классы остаются без изменений
 sealed class ProtocolUiState {
     object Loading : ProtocolUiState()
     object Creating : ProtocolUiState()

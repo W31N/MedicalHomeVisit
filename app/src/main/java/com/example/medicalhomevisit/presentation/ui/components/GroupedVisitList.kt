@@ -48,8 +48,6 @@ fun GroupedVisitList(
         }
 
         GroupingType.ADDRESS -> visits.groupBy { visit ->
-            // Простая группировка по первому слову адреса (название улицы)
-            // В реальном приложении нужна более сложная логика
             visit.address.split(" ").firstOrNull() ?: "Без адреса"
         }.toSortedMap()
     }

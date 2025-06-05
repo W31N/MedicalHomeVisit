@@ -1,4 +1,3 @@
-// VisitListScreen.kt
 package com.example.medicalhomevisit.presentation.ui.visitlist
 
 import androidx.compose.animation.AnimatedVisibility
@@ -38,13 +37,11 @@ fun VisitListScreen(
     val filterParams by viewModel.filterParams.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
-    // Pull-to-refresh состояние
     val pullRefreshState = rememberPullRefreshState(
         refreshing = uiState is VisitListUiState.Loading,
         onRefresh = { viewModel.loadVisits() }
     )
 
-    // Состояние для отображения панели фильтров
     var showFilters by remember { mutableStateOf(true) }
 
     Scaffold(
@@ -58,7 +55,6 @@ fun VisitListScreen(
                     IconButton(onClick = { viewModel.loadVisits() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Обновить")
                     }
-                    // Добавляем кнопку профиля
                     IconButton(onClick = onProfileClick) {
                         Icon(Icons.Default.Person, contentDescription = "Профиль")
                     }
@@ -76,39 +72,33 @@ fun VisitListScreen(
                 .padding(padding)
         ) {
             Column {
-                // Панель фильтров
                 AnimatedVisibility(visible = showFilters) {
                     Column {
-                        // Выбор даты
                         DateSelector(
                             selectedDate = filterParams.selectedDate,
                             onDateChange = { viewModel.updateSelectedDate(it) }
                         )
 
-                        // Фильтр по статусу
                         StatusFilter(
                             selectedStatus = filterParams.selectedStatus,
                             onStatusSelected = { viewModel.updateSelectedStatus(it) }
                         )
 
-                        // Поисковая строка
                         SearchBar(
                             query = searchQuery,
                             onQueryChange = { viewModel.updateSearchQuery(it) },
-                            onSearch = { /* Дополнительные действия при поиске */ }
+                            onSearch = {}
                         )
 
-                        // Выбор группировки
                         GroupingSelector(
                             selectedGrouping = filterParams.groupingType,
                             onGroupingSelected = { viewModel.updateGroupingType(it) }
                         )
 
-                        Divider()
+                        HorizontalDivider()
                     }
                 }
 
-                // Основное содержимое
                 Box(
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -148,7 +138,6 @@ fun VisitListScreen(
                                     onVisitClick = onVisitClick
                                 )
 
-                                // Индикатор Pull-to-refresh
                                 PullRefreshIndicator(
                                     refreshing = uiState is VisitListUiState.Loading,
                                     state = pullRefreshState,
@@ -184,7 +173,6 @@ fun VisitListScreen(
                 }
             }
 
-            // Индикатор офлайн-режима
             if (isOffline) {
                 Surface(
                     modifier = Modifier
@@ -201,7 +189,6 @@ fun VisitListScreen(
                 }
             }
 
-            // Компонент для тестирования офлайн режима (только в debug режиме)
             OfflineTestComponent(
                 viewModel = viewModel,
                 modifier = Modifier
@@ -212,7 +199,6 @@ fun VisitListScreen(
     }
 }
 
-// Компонент для тестирования офлайн режима
 @Composable
 fun OfflineTestComponent(
     viewModel: VisitListViewModel,
@@ -221,7 +207,6 @@ fun OfflineTestComponent(
     var showTestPanel by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
-        // Тестовая панель
         AnimatedVisibility(
             visible = showTestPanel,
             modifier = Modifier.align(Alignment.BottomEnd)
@@ -240,7 +225,7 @@ fun OfflineTestComponent(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        "🧪 OFFLINE TEST PANEL",
+                        "OFFLINE TEST PANEL",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -282,7 +267,6 @@ fun OfflineTestComponent(
             }
         }
 
-        // Кнопка для показа/скрытия панели тестирования
         FloatingActionButton(
             onClick = { showTestPanel = !showTestPanel },
             modifier = Modifier.size(40.dp),

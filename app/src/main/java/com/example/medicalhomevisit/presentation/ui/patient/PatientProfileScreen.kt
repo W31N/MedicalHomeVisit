@@ -1,4 +1,3 @@
-// 7. presentation/ui/patient/PatientProfileScreen.kt (НОВЫЙ ФАЙЛ)
 package com.example.medicalhomevisit.presentation.ui.patient
 
 import android.app.DatePickerDialog
@@ -7,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,7 +43,6 @@ fun PatientProfileScreen(
 
     val dateFormatter = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
 
-    // Обновляем поля при загрузке данных
     LaunchedEffect(profileData) {
         dateOfBirth = profileData.dateOfBirth
         gender = profileData.gender
@@ -54,11 +53,8 @@ fun PatientProfileScreen(
         chronicConditionsText = profileData.chronicConditions.joinToString(", ")
     }
 
-    // Обработка успешного обновления
     LaunchedEffect(uiState) {
         if (uiState is PatientProfileUiState.Updated) {
-            // Можно показать Snackbar или другое уведомление
-            // Через 2 секунды сбрасываем состояние
             kotlinx.coroutines.delay(2000)
             viewModel.resetToSuccess()
         }
@@ -70,7 +66,7 @@ fun PatientProfileScreen(
                 title = { Text("Мой профиль") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 actions = {
@@ -120,12 +116,10 @@ fun PatientProfileScreen(
             when (val currentState = uiState){
                 is PatientProfileUiState.Loading -> {
                     if (profileData.fullName.isEmpty()) {
-                        // Первоначальная загрузка
                         CircularProgressIndicator(
                             modifier = Modifier.align(Alignment.Center)
                         )
                     } else {
-                        // Показываем форму с индикатором загрузки
                         ProfileForm(
                             profileData = profileData,
                             dateOfBirth = dateOfBirth,
@@ -195,10 +189,8 @@ fun PatientProfileScreen(
                         enabled = true
                     )
 
-                    // Snackbar для успешного обновления
                     if (currentState is PatientProfileUiState.Updated) {
                         LaunchedEffect(Unit) {
-                            // Здесь можно добавить SnackbarHost если нужно
                         }
                     }
                 }
@@ -234,7 +226,6 @@ private fun ProfileForm(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ФИО (только для чтения)
         item {
             OutlinedTextField(
                 value = profileData.fullName,
@@ -248,7 +239,6 @@ private fun ProfileForm(
             )
         }
 
-        // Дата рождения
         item {
             Row(
                 modifier = Modifier
@@ -317,7 +307,6 @@ private fun ProfileForm(
             }
         }
 
-        // Пол
         item {
             GenderSelection(
                 selectedGender = gender,
@@ -326,7 +315,6 @@ private fun ProfileForm(
             )
         }
 
-        // Адрес
         item {
             OutlinedTextField(
                 value = address,
@@ -341,7 +329,6 @@ private fun ProfileForm(
             )
         }
 
-        // Телефон
         item {
             OutlinedTextField(
                 value = phoneNumber,
@@ -359,7 +346,6 @@ private fun ProfileForm(
             )
         }
 
-        // Номер полиса
         item {
             OutlinedTextField(
                 value = policyNumber,
@@ -374,7 +360,6 @@ private fun ProfileForm(
             )
         }
 
-        // Аллергии
         item {
             OutlinedTextField(
                 value = allergiesText,
@@ -391,7 +376,6 @@ private fun ProfileForm(
             )
         }
 
-        // Хронические заболевания
         item {
             OutlinedTextField(
                 value = chronicConditionsText,

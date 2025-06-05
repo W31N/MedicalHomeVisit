@@ -1,12 +1,12 @@
 package com.example.medicalhomevisit.domain.model
 
 data class User(
-    val id: String = "", // ID пользователя (UserEntity.id)
+    val id: String = "",
     val email: String = "",
     val displayName: String = "",
-    val role: UserRole = UserRole.PATIENT, // Изменил дефолтное значение на PATIENT для большей безопасности
+    val role: UserRole = UserRole.PATIENT,
     val isEmailVerified: Boolean = false,
-    val medicalPersonId: String? = null // <--- НОВОЕ ПОЛЕ (MedicalPerson.id)
+    val medicalPersonId: String? = null
 )
 
 enum class UserRole {

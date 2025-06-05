@@ -1,12 +1,11 @@
-// DateSelector.kt
 package com.example.medicalhomevisit.presentation.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,7 +38,7 @@ fun DateSelector(
             }.time
             onDateChange(prevDay)
         }) {
-            Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Предыдущий день")
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Предыдущий день")
         }
 
         Row(
@@ -63,11 +62,10 @@ fun DateSelector(
             }.time
             onDateChange(nextDay)
         }) {
-            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Следующий день")
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Следующий день")
         }
     }
 
-    // DatePicker диалог
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = selectedDate.time
@@ -96,11 +94,9 @@ fun DateSelector(
     }
 }
 
-// Проверяет, является ли дата сегодняшним днем
 private fun isToday(date: Date): Boolean {
     val today = Calendar.getInstance()
     val cal = Calendar.getInstance().apply { time = date }
-
     return today.get(Calendar.YEAR) == cal.get(Calendar.YEAR) &&
-            today.get(Calendar.DAY_OF_YEAR) == cal.get(Calendar.DAY_OF_YEAR)
+           today.get(Calendar.DAY_OF_YEAR) == cal.get(Calendar.DAY_OF_YEAR)
 }

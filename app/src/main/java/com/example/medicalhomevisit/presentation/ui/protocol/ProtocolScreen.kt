@@ -1,4 +1,3 @@
-// ProtocolScreen.kt
 package com.example.medicalhomevisit.presentation.ui.protocol
 
 import androidx.compose.foundation.clickable
@@ -7,7 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -43,12 +42,10 @@ fun ProtocolScreen(
     val visitState by viewModel.visitState.collectAsState()
     val protocolData by viewModel.protocolData.collectAsState()
     val templates by viewModel.templates.collectAsState()
-    val isOffline by viewModel.isOffline.collectAsState() // ← ДОБАВЛЕНО
+    val isOffline by viewModel.isOffline.collectAsState()
 
-    // Локальное состояние для отображения диалога выбора шаблона
     var showTemplateDialog by remember { mutableStateOf(false) }
 
-    // Обработка состояния сохранения
     LaunchedEffect(uiState) {
         if (uiState is ProtocolUiState.Saved) {
             onNavigateBack()
@@ -69,7 +66,7 @@ fun ProtocolScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 actions = {
@@ -92,13 +89,11 @@ fun ProtocolScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // ===== ИНДИКАТОР ОФЛАЙН РЕЖИМА =====
             ProtocolOfflineIndicator(
                 isOffline = isOffline,
                 onSyncClick = { viewModel.syncData() }
             )
 
-            // ===== ОСНОВНОЕ СОДЕРЖИМОЕ =====
             Box(
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -125,7 +120,6 @@ fun ProtocolScreen(
                             onSelectTemplate = { showTemplateDialog = true }
                         )
 
-                        // Диалог выбора шаблона протокола
                         if (showTemplateDialog) {
                             TemplateSelectionDialog(
                                 templates = templates,
@@ -167,10 +161,9 @@ fun ProtocolScreen(
                             }
                         }
                     }
-                    else -> { /* No-op */ }
+                    else -> {}
                 }
 
-                // ===== ТЕСТОВАЯ ПАНЕЛЬ ДЛЯ ОТЛАДКИ =====
                 ProtocolTestComponent(
                     viewModel = viewModel,
                     modifier = Modifier
@@ -182,7 +175,6 @@ fun ProtocolScreen(
     }
 }
 
-// ===== КОМПОНЕНТ ИНДИКАТОРА ОФЛАЙН РЕЖИМА =====
 @Composable
 fun ProtocolOfflineIndicator(
     isOffline: Boolean,
@@ -249,7 +241,6 @@ fun ProtocolOfflineIndicator(
     }
 }
 
-// ===== ТЕСТОВЫЙ КОМПОНЕНТ ДЛЯ ОТЛАДКИ =====
 @Composable
 fun ProtocolTestComponent(
     viewModel: ProtocolViewModel,
@@ -258,7 +249,6 @@ fun ProtocolTestComponent(
     var showTestPanel by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
-        // Тестовая панель
         androidx.compose.animation.AnimatedVisibility(
             visible = showTestPanel,
             modifier = Modifier.align(Alignment.BottomEnd)
@@ -277,7 +267,7 @@ fun ProtocolTestComponent(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        "🧪 PROTOCOL TEST PANEL",
+                        "PROTOCOL TEST PANEL",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -319,7 +309,6 @@ fun ProtocolTestComponent(
             }
         }
 
-        // Кнопка для показа/скрытия панели тестирования
         FloatingActionButton(
             onClick = { showTestPanel = !showTestPanel },
             modifier = Modifier.size(40.dp),
@@ -354,12 +343,10 @@ fun ProtocolContent(
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Информация о визите
         visit?.let {
             VisitInfoCard(visit = it)
         }
 
-        // Кнопка выбора шаблона
         OutlinedButton(
             onClick = onSelectTemplate,
             modifier = Modifier.fillMaxWidth()
@@ -367,7 +354,6 @@ fun ProtocolContent(
             Text("Выбрать шаблон протокола")
         }
 
-        // Основные поля протокола
         ProtocolFieldCard(
             title = "Жалобы",
             value = protocolData.complaints,
@@ -389,7 +375,6 @@ fun ProtocolContent(
             placeholder = "Опишите результаты объективного осмотра"
         )
 
-        // Витальные показатели
         VitalSignsCard(
             temperature = protocolData.temperature,
             systolicBP = protocolData.systolicBP,
@@ -402,7 +387,6 @@ fun ProtocolContent(
             onUpdateAdditionalVital = onUpdateAdditionalVital
         )
 
-        // Диагноз и рекомендации
         ProtocolFieldCard(
             title = "Диагноз",
             value = protocolData.diagnosis,
@@ -425,7 +409,6 @@ fun ProtocolContent(
             placeholder = "Укажите назначения и рекомендации для пациента"
         )
 
-        // Нижний отступ для удобства прокрутки
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
@@ -474,7 +457,7 @@ fun VisitInfoCard(visit: Visit) {
                 )
             }
 
-            if (visit.notes != null) {
+            if (visit.notes.isNotBlank()) {
                 Row {
                     Text(
                         text = "Примечания:",
@@ -492,7 +475,6 @@ fun VisitInfoCard(visit: Visit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProtocolFieldCard(
     title: String,
@@ -529,7 +511,6 @@ fun ProtocolFieldCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VitalSignsCard(
     temperature: Float?,
@@ -542,13 +523,11 @@ fun VitalSignsCard(
     onUpdatePulse: (Int?) -> Unit,
     onUpdateAdditionalVital: (String, String) -> Unit
 ) {
-    // Локальное состояние для текстовых полей
     var tempText by remember { mutableStateOf(temperature?.toString() ?: "") }
     var systolicText by remember { mutableStateOf(systolicBP?.toString() ?: "") }
     var diastolicText by remember { mutableStateOf(diastolicBP?.toString() ?: "") }
     var pulseText by remember { mutableStateOf(pulse?.toString() ?: "") }
 
-    // Дополнительный показатель (локальное состояние)
     var newVitalKey by remember { mutableStateOf("") }
     var newVitalValue by remember { mutableStateOf("") }
     var showAddVitalDialog by remember { mutableStateOf(false) }
@@ -566,7 +545,6 @@ fun VitalSignsCard(
                 fontWeight = FontWeight.Bold
             )
 
-            // Температура
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -598,7 +576,6 @@ fun VitalSignsCard(
                 )
             }
 
-            // Артериальное давление
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -650,7 +627,6 @@ fun VitalSignsCard(
                 )
             }
 
-            // Пульс
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -682,9 +658,8 @@ fun VitalSignsCard(
                 )
             }
 
-            // Дополнительные показатели
             if (additionalVitals.isNotEmpty()) {
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 Text(
                     text = "Дополнительные показатели:",
@@ -719,7 +694,6 @@ fun VitalSignsCard(
                 }
             }
 
-            // Кнопка добавления показателя
             Button(
                 onClick = { showAddVitalDialog = true },
                 modifier = Modifier.align(Alignment.End)
@@ -729,7 +703,6 @@ fun VitalSignsCard(
         }
     }
 
-    // Диалог добавления показателя
     if (showAddVitalDialog) {
         AlertDialog(
             onDismissRequest = { showAddVitalDialog = false },

@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,12 +37,11 @@ fun CreateRequestScreen(
     var requestType by remember { mutableStateOf(RequestType.REGULAR) }
     var symptoms by remember { mutableStateOf("") }
     var selectedDate by remember { mutableStateOf<Date?>(null) }
-    var selectedHour by remember { mutableStateOf(9) } // 9 часов утра по умолчанию
+    var selectedHour by remember { mutableStateOf(9) }
     var selectedMinute by remember { mutableStateOf(0) }
     var address by remember { mutableStateOf("") }
     var additionalNotes by remember { mutableStateOf("") }
 
-    // Состояние для отображения сообщения об ошибке выбора времени
     var showTimeError by remember { mutableStateOf(false) }
     var timeErrorMessage by remember { mutableStateOf("") }
 
@@ -49,11 +49,9 @@ fun CreateRequestScreen(
     val dateFormatter = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
     val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-    // Рабочее время в часах (9:00 - 18:00)
     val workHoursStart = 9
     val workHoursEnd = 18
 
-    // Создаем полную дату с временем
     val fullDateTime: Date? = remember(selectedDate, selectedHour, selectedMinute) {
         selectedDate?.let { date ->
             val calendar = Calendar.getInstance()
@@ -64,15 +62,10 @@ fun CreateRequestScreen(
         }
     }
 
-    // Автоматически заполняем адрес пользователя, если он доступен
     LaunchedEffect(user) {
         if (!address.isBlank()) return@LaunchedEffect
-        // Здесь нужно получить адрес из профиля пользователя,
-        // если есть соответствующее поле
-        // address = user?.address ?: ""
     }
 
-    // Обработка состояния создания заявки
     LaunchedEffect(uiState) {
         if (uiState is PatientUiState.RequestCreated) {
             onRequestCreated()
@@ -85,7 +78,7 @@ fun CreateRequestScreen(
                 title = { Text("Новая заявка на визит") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -103,7 +96,6 @@ fun CreateRequestScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Тип заявки
             Column {
                 Text(
                     text = "Тип заявки",
@@ -117,21 +109,18 @@ fun CreateRequestScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     RequestTypeButton(
-                        type = RequestType.REGULAR,
                         label = "Плановая",
                         selected = requestType == RequestType.REGULAR,
                         onClick = { requestType = RequestType.REGULAR }
                     )
 
                     RequestTypeButton(
-                        type = RequestType.EMERGENCY,
                         label = "Неотложная",
                         selected = requestType == RequestType.EMERGENCY,
                         onClick = { requestType = RequestType.EMERGENCY }
                     )
 
                     RequestTypeButton(
-                        type = RequestType.CONSULTATION,
                         label = "Консультация",
                         selected = requestType == RequestType.CONSULTATION,
                         onClick = { requestType = RequestType.CONSULTATION }
@@ -139,7 +128,6 @@ fun CreateRequestScreen(
                 }
             }
 
-            // Симптомы
             OutlinedTextField(
                 value = symptoms,
                 onValueChange = { symptoms = it },
@@ -151,7 +139,6 @@ fun CreateRequestScreen(
                 minLines = 3
             )
 
-            // Дата и время
             if (requestType != RequestType.EMERGENCY) {
                 Card(
                     modifier = Modifier.fillMaxWidth()
@@ -165,7 +152,6 @@ fun CreateRequestScreen(
                             style = MaterialTheme.typography.titleMedium
                         )
 
-                        // Выбор даты
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -187,7 +173,6 @@ fun CreateRequestScreen(
                                 Spacer(modifier = Modifier.weight(1f))
 
                                 TextButton(onClick = {
-                                    // Показываем DatePickerDialog
                                     val calendar = Calendar.getInstance()
                                     calendar.time = selectedDate!!
                                     DatePickerDialog(
@@ -195,7 +180,6 @@ fun CreateRequestScreen(
                                         { _, year, month, dayOfMonth ->
                                             val newCalendar = Calendar.getInstance()
                                             newCalendar.set(year, month, dayOfMonth)
-                                            // Сохраняем только дату, сохраняя текущее выбранное время
                                             selectedDate = newCalendar.time
                                         },
                                         calendar.get(Calendar.YEAR),
@@ -220,7 +204,6 @@ fun CreateRequestScreen(
                                 Spacer(modifier = Modifier.weight(1f))
 
                                 Button(onClick = {
-                                    // Показываем DatePickerDialog
                                     val calendar = Calendar.getInstance()
                                     DatePickerDialog(
                                         context,
@@ -228,7 +211,6 @@ fun CreateRequestScreen(
                                             val newCalendar = Calendar.getInstance()
                                             newCalendar.set(year, month, dayOfMonth)
                                             selectedDate = newCalendar.time
-                                            // По умолчанию устанавливаем 9:00 утра
                                             selectedHour = workHoursStart
                                             selectedMinute = 0
                                         },
@@ -251,7 +233,6 @@ fun CreateRequestScreen(
                             }
                         }
 
-                        // Выбор времени
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -277,11 +258,9 @@ fun CreateRequestScreen(
                                         Spacer(modifier = Modifier.weight(1f))
 
                                         Button(onClick = {
-                                            // Показываем TimePickerDialog
                                             TimePickerDialog(
                                                 context,
                                                 { _, hourOfDay, minute ->
-                                                    // Проверяем, что выбранное время находится в рабочем диапазоне
                                                     if (hourOfDay < workHoursStart || hourOfDay >= workHoursEnd) {
                                                         showTimeError = true
                                                         timeErrorMessage = "Пожалуйста, выберите время с $workHoursStart:00 до $workHoursEnd:00"
@@ -293,14 +272,13 @@ fun CreateRequestScreen(
                                                 },
                                                 selectedHour,
                                                 selectedMinute,
-                                                true // 24-часовой формат
+                                                true
                                             ).show()
                                         }) {
                                             Text("Выбрать время")
                                         }
                                     }
 
-                                    // Сообщение об ошибке выбора времени
                                     if (showTimeError) {
                                         Text(
                                             text = timeErrorMessage,
@@ -309,7 +287,6 @@ fun CreateRequestScreen(
                                             modifier = Modifier.padding(top = 4.dp)
                                         )
                                     } else {
-                                        // Информационное сообщение о рабочих часах
                                         Text(
                                             text = "Рабочие часы: с $workHoursStart:00 до $workHoursEnd:00",
                                             style = MaterialTheme.typography.bodySmall,
@@ -330,7 +307,6 @@ fun CreateRequestScreen(
                 }
             }
 
-            // Адрес
             OutlinedTextField(
                 value = address,
                 onValueChange = { address = it },
@@ -344,7 +320,6 @@ fun CreateRequestScreen(
                 )
             )
 
-            // Дополнительная информация
             OutlinedTextField(
                 value = additionalNotes,
                 onValueChange = { additionalNotes = it },
@@ -356,14 +331,13 @@ fun CreateRequestScreen(
                 minLines = 2
             )
 
-            // Кнопка отправки
             Button(
                 onClick = {
                     viewModel.createNewRequest(
                         requestType = requestType,
                         symptoms = symptoms,
-                        preferredDate = fullDateTime, // Используем комбинированную дату с временем
-                        preferredTimeRange = null, // Теперь не используем диапазоны времени
+                        preferredDate = fullDateTime,
+                        preferredTimeRange = null,
                         address = address,
                         additionalNotes = additionalNotes.ifBlank { null }
                     )
@@ -373,7 +347,7 @@ fun CreateRequestScreen(
                     .padding(top = 8.dp),
                 enabled = symptoms.isNotBlank() && address.isNotBlank() &&
                         (requestType == RequestType.EMERGENCY || selectedDate != null) &&
-                        !showTimeError && // Проверяем отсутствие ошибки времени
+                        !showTimeError &&
                         uiState !is PatientUiState.Loading
             ) {
                 if (uiState is PatientUiState.Loading) {
@@ -391,7 +365,6 @@ fun CreateRequestScreen(
 
 @Composable
 fun RowScope.RequestTypeButton(
-    type: RequestType,
     label: String,
     selected: Boolean,
     onClick: () -> Unit
@@ -410,12 +383,12 @@ fun RowScope.RequestTypeButton(
         modifier = Modifier.weight(1f),
         colors = colors,
         shape = MaterialTheme.shapes.medium,
-        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)  // Уменьшаем padding для более компактного отображения
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,  // Ограничиваем текст одной строкой
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
     }

@@ -12,7 +12,7 @@ import javax.inject.Inject
 class MedicalApplication : Application(), Configuration.Provider {
 
     @Inject
-    lateinit var workerFactory: HiltWorkerFactory  // ← ЭТО НУЖНО ДЛЯ СИНХРОНИЗАЦИИ!
+    lateinit var workerFactory: HiltWorkerFactory
 
     @Inject
     lateinit var syncManager: SyncManager
@@ -23,15 +23,13 @@ class MedicalApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "🚀 Medical Home Visit App starting...")
-
-        // Инициализируем WorkManager для фоновой синхронизации
+        Log.d(TAG, "Medical Home Visit App starting...")
         initializeWorkManager()
     }
 
     override fun getWorkManagerConfiguration(): Configuration {
         return Configuration.Builder()
-            .setWorkerFactory(workerFactory)  // ← БЕЗ ЭТОГО HILT НЕ РАБОТАЕТ В WORKER!
+            .setWorkerFactory(workerFactory)
             .setMinimumLoggingLevel(Log.DEBUG)
             .build()
     }
@@ -39,9 +37,9 @@ class MedicalApplication : Application(), Configuration.Provider {
     private fun initializeWorkManager() {
         try {
             syncManager.setupPeriodicSync()
-            Log.d(TAG, "✅ WorkManager initialized successfully")
+            Log.d(TAG, "WorkManager initialized successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to initialize WorkManager: ${e.message}", e)
+            Log.e(TAG, "Failed to initialize WorkManager: ${e.message}", e)
         }
     }
 }

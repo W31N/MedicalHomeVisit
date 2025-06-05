@@ -11,7 +11,6 @@ import com.example.medicalhomevisit.data.remote.dto.VisitProtocolDto
 import com.example.medicalhomevisit.data.sync.SyncManager
 import com.example.medicalhomevisit.domain.model.ProtocolTemplate
 import com.example.medicalhomevisit.domain.model.VisitProtocol
-import com.example.medicalhomevisit.domain.repository.AuthRepository
 import com.example.medicalhomevisit.domain.repository.ProtocolRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -26,15 +25,12 @@ class SimpleOfflineProtocolRepository @Inject constructor(
     private val protocolApiService: ProtocolApiService,
     private val visitProtocolDao: VisitProtocolDao,
     private val protocolTemplateDao: ProtocolTemplateDao,
-    private val authRepository: AuthRepository,
     private val syncManager: SyncManager
 ) : ProtocolRepository {
 
     companion object {
         private const val TAG = "OfflineProtocolRepo"
     }
-
-    // ===== ОСНОВНЫЕ МЕТОДЫ ПРОТОКОЛОВ =====
 
     fun observeProtocolForVisit(visitId: String): Flow<VisitProtocol?> {
         return visitProtocolDao.getProtocolByVisitId(visitId).map { entity ->
@@ -45,10 +41,8 @@ class SimpleOfflineProtocolRepository @Inject constructor(
     override suspend fun getProtocolForVisit(visitId: String): VisitProtocol? {
         Log.d(TAG, "🔍 Getting protocol for visit: $visitId")
 
-        // 1. Сначала возвращаем из локальной базы
         val localProtocol = visitProtocolDao.getProtocolByVisitIdOnce(visitId)?.toDomainModel()
 
-        // 2. В фоне пытаемся обновить с сервера
         tryRefreshProtocolFromServer(visitId)
 
         return localProtocol
@@ -61,7 +55,7 @@ class SimpleOfflineProtocolRepository @Inject constructor(
         val existingEntity = visitProtocolDao.getProtocolByVisitIdOnce(protocol.visitId)
 
         val isNewProtocol = existingEntity == null
-        val protocolId = if (isNewProtocol || protocol.id.isNullOrBlank()) {
+        val protocolId = if (isNewProtocol || protocol.id.isBlank()) {
             "local_proto_${UUID.randomUUID()}"
         } else {
             protocol.id
@@ -77,7 +71,6 @@ class SimpleOfflineProtocolRepository @Inject constructor(
         visitProtocolDao.insertProtocol(entityToSave)
         Log.d(TAG, "✅ Protocol saved locally with action: ${entityToSave.syncAction}")
 
-        // Запускаем синхронизацию
         syncManager.syncProtocolsNow()
 
         return entityToSave.toDomainModel()
@@ -88,7 +81,6 @@ class SimpleOfflineProtocolRepository @Inject constructor(
 
         var protocol = getProtocolForVisit(visitId)
         if (protocol == null) {
-            // Создаем новый протокол, если его нет
             protocol = VisitProtocol(
                 id = "local_proto_${UUID.randomUUID()}",
                 visitId = visitId,
@@ -143,13 +135,11 @@ class SimpleOfflineProtocolRepository @Inject constructor(
     override suspend fun applyTemplate(visitId: String, templateId: String): VisitProtocol {
         Log.d(TAG, "🎨 Applying template $templateId to visit $visitId")
 
-        // Сначала пытаемся использовать API
         val apiResult = tryApplyTemplateOnServer(visitId, templateId)
         if (apiResult != null) {
             return apiResult
         }
 
-        // Если API недоступно, применяем локально
         val template = getProtocolTemplateById(templateId)
             ?: throw IllegalArgumentException("Template $templateId not found")
 
@@ -181,11 +171,9 @@ class SimpleOfflineProtocolRepository @Inject constructor(
         val existingEntity = visitProtocolDao.getProtocolByVisitIdOnce(visitId)
         if (existingEntity != null) {
             if (existingEntity.syncAction == "CREATE") {
-                // Локально созданный протокол - просто удаляем
                 visitProtocolDao.deleteProtocolById(existingEntity.id)
                 Log.d(TAG, "✅ Locally created protocol deleted")
             } else {
-                // Протокол с сервера - помечаем для удаления
                 val markedForDeletion = existingEntity.copy(
                     isSynced = false,
                     syncAction = "DELETE",
@@ -198,15 +186,11 @@ class SimpleOfflineProtocolRepository @Inject constructor(
         }
     }
 
-    // ===== МЕТОДЫ ШАБЛОНОВ =====
-
     override suspend fun getProtocolTemplates(): List<ProtocolTemplate> {
         Log.d(TAG, "📋 Getting protocol templates")
 
-        // Сначала возвращаем локальные шаблоны
         var templates = protocolTemplateDao.getAllTemplates().firstOrNull()?.map { it.toDomainModel() } ?: emptyList()
 
-        // Если локальных нет, пытаемся загрузить с сервера
         if (templates.isEmpty()) {
             tryRefreshTemplatesFromServer()
             templates = protocolTemplateDao.getAllTemplates().firstOrNull()?.map { it.toDomainModel() } ?: emptyList()
@@ -218,8 +202,6 @@ class SimpleOfflineProtocolRepository @Inject constructor(
     override suspend fun getProtocolTemplateById(templateId: String): ProtocolTemplate? {
         return protocolTemplateDao.getTemplateById(templateId)?.toDomainModel()
     }
-
-    // ===== КЭШИРОВАНИЕ И СИНХРОНИЗАЦИЯ =====
 
     override suspend fun syncProtocols(): Result<Unit> {
         Log.d(TAG, "🔄 Manual protocol sync requested")
@@ -234,7 +216,6 @@ class SimpleOfflineProtocolRepository @Inject constructor(
     }
 
     override suspend fun getCachedProtocols(): List<VisitProtocol> {
-        // Реализация зависит от того, есть ли метод getAllProtocols в DAO
         Log.w(TAG, "getCachedProtocols not fully implemented - needs DAO method")
         return emptyList()
     }
@@ -242,8 +223,6 @@ class SimpleOfflineProtocolRepository @Inject constructor(
     override suspend fun getCachedProtocolForVisit(visitId: String): VisitProtocol? {
         return visitProtocolDao.getProtocolByVisitIdOnce(visitId)?.toDomainModel()
     }
-
-    // ===== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =====
 
     private suspend fun tryRefreshProtocolFromServer(visitId: String) {
         try {
@@ -299,8 +278,6 @@ class SimpleOfflineProtocolRepository @Inject constructor(
         }
     }
 
-    // ===== МЕТОДЫ ДЛЯ ОТЛАДКИ =====
-
     suspend fun getUnsyncedCount(): Int {
         return try {
             visitProtocolDao.getUnsyncedProtocols().size
@@ -318,8 +295,6 @@ class SimpleOfflineProtocolRepository @Inject constructor(
             emptyList()
         }
     }
-
-    // ===== МАППЕРЫ =====
 
     private fun VisitProtocolEntity.toDomainModel(): VisitProtocol {
         return VisitProtocol(
@@ -343,10 +318,10 @@ class SimpleOfflineProtocolRepository @Inject constructor(
     }
 
     private fun VisitProtocol.toEntity(
-        id: String = this.id ?: "error_${UUID.randomUUID()}",
+        id: String = this.id,
         isSynced: Boolean = true,
         syncAction: String? = null,
-        updatedAt: Date = this.updatedAt ?: Date()
+        updatedAt: Date = this.updatedAt
     ): VisitProtocolEntity {
         return VisitProtocolEntity(
             id = id,
@@ -363,7 +338,7 @@ class SimpleOfflineProtocolRepository @Inject constructor(
             diastolicBP = this.diastolicBP,
             pulse = this.pulse,
             additionalVitals = this.additionalVitals ?: emptyMap(),
-            createdAt = this.createdAt ?: updatedAt,
+            createdAt = this.createdAt,
             updatedAt = updatedAt,
             isSynced = isSynced,
             syncAction = syncAction,

@@ -1,10 +1,10 @@
-// com/example/medicalhomevisit/ui/patient/RequestDetailsScreen.kt
 package com.example.medicalhomevisit.presentation.ui.patient
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,7 +33,7 @@ fun RequestDetailsScreen(
                 title = { Text("Детали заявки") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -50,7 +50,6 @@ fun RequestDetailsScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Статус заявки
             Card(
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -70,9 +69,8 @@ fun RequestDetailsScreen(
                         StatusChip(status = request.status)
                     }
 
-                    if (request.responseMessage != null) {
+                    if (request.responseMessage.isNotBlank()) {
                         Spacer(modifier = Modifier.height(8.dp))
-
                         Text(
                             text = request.responseMessage,
                             style = MaterialTheme.typography.bodyMedium
@@ -83,7 +81,6 @@ fun RequestDetailsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Информация о заявке
             Card(
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -96,7 +93,6 @@ fun RequestDetailsScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
 
-                    // Тип заявки
                     InfoRow(
                         icon = Icons.Default.Category,
                         label = "Тип заявки",
@@ -107,14 +103,12 @@ fun RequestDetailsScreen(
                         }
                     )
 
-                    // Симптомы
                     InfoRow(
                         icon = Icons.Default.Healing,
                         label = "Причина визита",
                         value = request.symptoms
                     )
 
-                    // Дата создания
                     val dateFormatter = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
                     InfoRow(
                         icon = Icons.Default.DateRange,
@@ -122,7 +116,6 @@ fun RequestDetailsScreen(
                         value = dateFormatter.format(request.createdAt)
                     )
 
-                    // Предпочтительная дата
                     if (request.preferredDateTime != null) {
                         InfoRow(
                             icon = Icons.Default.Event,
@@ -131,15 +124,13 @@ fun RequestDetailsScreen(
                         )
                     }
 
-                    // Адрес
                     InfoRow(
                         icon = Icons.Default.LocationOn,
                         label = "Адрес",
                         value = request.address
                     )
 
-                    // Дополнительная информация
-                    if (!request.additionalNotes.isNullOrBlank()) {
+                    if (request.additionalNotes.isNotBlank()) {
                         InfoRow(
                             icon = Icons.Default.Info,
                             label = "Дополнительная информация",
@@ -149,7 +140,6 @@ fun RequestDetailsScreen(
                 }
             }
 
-            // Кнопка отмены заявки (только для активных заявок)
             if (request.status == RequestStatus.NEW ||
                 request.status == RequestStatus.PENDING ||
                 request.status == RequestStatus.ASSIGNED) {
@@ -176,7 +166,6 @@ fun RequestDetailsScreen(
         }
     }
 
-    // Диалог отмены заявки
     if (showCancelDialog) {
         AlertDialog(
             onDismissRequest = { showCancelDialog = false },
