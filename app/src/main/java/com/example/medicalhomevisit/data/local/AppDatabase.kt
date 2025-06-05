@@ -6,10 +6,12 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import android.content.Context
 import com.example.medicalhomevisit.data.local.converter.Converters
+import com.example.medicalhomevisit.data.local.dao.PatientDao
 import com.example.medicalhomevisit.data.local.dao.ProtocolTemplateDao
 import com.example.medicalhomevisit.data.local.entity.VisitEntity
 import com.example.medicalhomevisit.data.local.dao.VisitDao
 import com.example.medicalhomevisit.data.local.dao.VisitProtocolDao
+import com.example.medicalhomevisit.data.local.entity.PatientEntity
 import com.example.medicalhomevisit.data.local.entity.ProtocolTemplateEntity
 import com.example.medicalhomevisit.data.local.entity.VisitProtocolEntity
 
@@ -17,9 +19,10 @@ import com.example.medicalhomevisit.data.local.entity.VisitProtocolEntity
     entities = [
         ProtocolTemplateEntity::class,
         VisitProtocolEntity::class,
-        VisitEntity::class
+        VisitEntity::class,
+        PatientEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -28,6 +31,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun visitProtocolDao(): VisitProtocolDao
     abstract fun protocolTemplateDao(): ProtocolTemplateDao
     abstract fun visitDao(): VisitDao
+    abstract fun patientDao(): PatientDao
 
     companion object {
         @Volatile

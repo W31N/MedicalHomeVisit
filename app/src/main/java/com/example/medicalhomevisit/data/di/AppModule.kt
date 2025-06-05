@@ -3,6 +3,7 @@ package com.example.medicalhomevisit.data.di
 import android.content.Context
 import androidx.room.Room
 import com.example.medicalhomevisit.data.local.AppDatabase
+import com.example.medicalhomevisit.data.local.dao.PatientDao
 import com.example.medicalhomevisit.data.local.dao.ProtocolTemplateDao
 import com.example.medicalhomevisit.data.local.dao.VisitDao
 import com.example.medicalhomevisit.data.local.dao.VisitProtocolDao
@@ -225,6 +226,9 @@ object AppModule {
     ): PatientRepository {
         return PatientRepositoryImpl(patientApiService, authRepository)
     }
+
+    @Provides
+    fun providePatientDao(database: AppDatabase): PatientDao = database.patientDao()
 
 //    @Provides
 //    @Singleton

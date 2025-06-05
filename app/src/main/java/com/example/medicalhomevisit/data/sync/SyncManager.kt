@@ -25,6 +25,7 @@ class SyncManager @Inject constructor(
         Log.d(TAG, "🚀 Starting immediate sync for all data...")
         syncVisitsNow()
         syncProtocolsNow()
+        syncPatientsNow()
     }
 
     fun setupPeriodicSync() {

@@ -9,6 +9,7 @@ import com.example.medicalhomevisit.data.sync.SyncManager
 import com.example.medicalhomevisit.domain.model.Visit
 import com.example.medicalhomevisit.domain.model.VisitStatus
 import com.example.medicalhomevisit.domain.repository.AuthRepository
+import com.example.medicalhomevisit.domain.repository.PatientRepository
 import com.example.medicalhomevisit.domain.repository.VisitRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -26,7 +27,8 @@ class SimpleOfflineVisitRepository @Inject constructor(
     private val visitDao: VisitDao,
     private val apiService: VisitApiService,
     private val authRepository: AuthRepository,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val patientRepository: PatientRepository
 ) : VisitRepository {
 
     companion object {
