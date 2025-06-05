@@ -3,7 +3,9 @@ package com.example.medicalhomevisit.data.di
 import android.content.Context
 import androidx.room.Room
 import com.example.medicalhomevisit.data.local.AppDatabase
+import com.example.medicalhomevisit.data.local.dao.ProtocolTemplateDao
 import com.example.medicalhomevisit.data.local.dao.VisitDao
+import com.example.medicalhomevisit.data.local.dao.VisitProtocolDao
 import com.example.medicalhomevisit.data.remote.api.AdminApiService
 import com.example.medicalhomevisit.data.remote.api.AppointmentApiService
 import com.example.medicalhomevisit.data.remote.api.AuthApiService
@@ -11,13 +13,12 @@ import com.example.medicalhomevisit.data.remote.network.AuthInterceptor
 import com.example.medicalhomevisit.data.remote.repository.AdminRepositoryImpl
 import com.example.medicalhomevisit.data.remote.repository.AppointmentRequestRepositoryImpl
 import com.example.medicalhomevisit.data.remote.repository.PatientRepositoryImpl
-import com.example.medicalhomevisit.data.remote.repository.ProtocolRepositoryImpl
-import com.example.medicalhomevisit.data.remote.repository.VisitRepositoryImpl
 import com.example.medicalhomevisit.data.remote.api.PatientApiService
 import com.example.medicalhomevisit.data.remote.api.ProtocolApiService
 import com.example.medicalhomevisit.data.remote.network.TokenManager
 import com.example.medicalhomevisit.data.remote.api.VisitApiService
 import com.example.medicalhomevisit.data.remote.repository.AuthRepositoryImpl
+import com.example.medicalhomevisit.data.repository.SimpleOfflineProtocolRepository
 import com.example.medicalhomevisit.data.repository.SimpleOfflineVisitRepository
 import com.example.medicalhomevisit.data.sync.SyncManager
 import com.example.medicalhomevisit.domain.repository.AdminRepository
@@ -62,6 +63,13 @@ object AppModule {
 
     @Provides
     fun provideVisitDao(database: AppDatabase): VisitDao = database.visitDao()
+
+    @Provides
+    fun provideVisitProtocolDao(database: AppDatabase): VisitProtocolDao = database.visitProtocolDao()
+
+    @Provides
+    fun provideProtocolTemplateDao(database: AppDatabase): ProtocolTemplateDao = database.protocolTemplateDao()
+
 
     // ===== NETWORKING =====
 
@@ -218,12 +226,31 @@ object AppModule {
         return PatientRepositoryImpl(patientApiService, authRepository)
     }
 
-    @Provides
+//    @Provides
+//    @Singleton
+//    fun provideProtocolRepository(
+//        protocolApiService: ProtocolApiService,
+//        authRepository: AuthRepository
+//    ): ProtocolRepository {
+//        return ProtocolRepositoryImpl(protocolApiService, authRepository)
+//    }
+
     @Singleton
     fun provideProtocolRepository(
         protocolApiService: ProtocolApiService,
-        authRepository: AuthRepository
+        visitProtocolDao: VisitProtocolDao,
+        protocolTemplateDao: ProtocolTemplateDao,
+        authRepository: AuthRepository,
+        syncManager: SyncManager
+        // visitDao: VisitDao,
     ): ProtocolRepository {
-        return ProtocolRepositoryImpl(protocolApiService, authRepository)
+        return SimpleOfflineProtocolRepository(
+            protocolApiService,
+            visitProtocolDao,         // Передаем DAO
+            protocolTemplateDao,      // Передаем DAO
+            authRepository,           // Передаем, если нужно
+            syncManager               // Передаем SyncManager
+            // visitDao
+        )
     }
 }
