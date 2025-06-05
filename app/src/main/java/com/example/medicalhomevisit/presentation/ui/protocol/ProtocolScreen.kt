@@ -1,13 +1,18 @@
 // ProtocolScreen.kt
 package com.example.medicalhomevisit.presentation.ui.protocol
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.medicalhomevisit.domain.model.Visit
 import com.example.medicalhomevisit.presentation.viewmodel.ProtocolData
@@ -37,6 +43,7 @@ fun ProtocolScreen(
     val visitState by viewModel.visitState.collectAsState()
     val protocolData by viewModel.protocolData.collectAsState()
     val templates by viewModel.templates.collectAsState()
+    val isOffline by viewModel.isOffline.collectAsState() // ← ДОБАВЛЕНО
 
     // Локальное состояние для отображения диалога выбора шаблона
     var showTemplateDialog by remember { mutableStateOf(false) }
@@ -80,71 +87,249 @@ fun ProtocolScreen(
             )
         }
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            when (uiState) {
-                is ProtocolUiState.Loading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                is ProtocolUiState.Creating, is ProtocolUiState.Editing -> {
-                    val visit = when (visitState) {
-                        is VisitState.Success -> (visitState as VisitState.Success).visit
-                        else -> null
-                    }
+            // ===== ИНДИКАТОР ОФЛАЙН РЕЖИМА =====
+            ProtocolOfflineIndicator(
+                isOffline = isOffline,
+                onSyncClick = { viewModel.syncData() }
+            )
 
-                    ProtocolContent(
-                        visit = visit,
-                        protocolData = protocolData,
-                        onUpdateField = { field, value -> viewModel.updateProtocolField(field, value) },
-                        onUpdateTemperature = { viewModel.updateTemperature(it) },
-                        onUpdateBloodPressure = { systolic, diastolic -> viewModel.updateBloodPressure(systolic, diastolic) },
-                        onUpdatePulse = { viewModel.updatePulse(it) },
-                        onUpdateAdditionalVital = { key, value -> viewModel.updateAdditionalVital(key, value) },
-                        onSelectTemplate = { showTemplateDialog = true }
-                    )
-
-                    // Диалог выбора шаблона протокола
-                    if (showTemplateDialog) {
-                        TemplateSelectionDialog(
-                            templates = templates,
-                            onSelectTemplate = {
-                                viewModel.applyTemplate(it)
-                                showTemplateDialog = false
-                            },
-                            onDismiss = { showTemplateDialog = false }
+            // ===== ОСНОВНОЕ СОДЕРЖИМОЕ =====
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when (uiState) {
+                    is ProtocolUiState.Loading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center)
                         )
                     }
-                }
-                is ProtocolUiState.Error -> {
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Ошибка",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.error
+                    is ProtocolUiState.Creating, is ProtocolUiState.Editing -> {
+                        val visit = when (visitState) {
+                            is VisitState.Success -> (visitState as VisitState.Success).visit
+                            else -> null
+                        }
+
+                        ProtocolContent(
+                            visit = visit,
+                            protocolData = protocolData,
+                            onUpdateField = { field, value -> viewModel.updateProtocolField(field, value) },
+                            onUpdateTemperature = { viewModel.updateTemperature(it) },
+                            onUpdateBloodPressure = { systolic, diastolic -> viewModel.updateBloodPressure(systolic, diastolic) },
+                            onUpdatePulse = { viewModel.updatePulse(it) },
+                            onUpdateAdditionalVital = { key, value -> viewModel.updateAdditionalVital(key, value) },
+                            onSelectTemplate = { showTemplateDialog = true }
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = (uiState as ProtocolUiState.Error).message,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = onNavigateBack) {
-                            Text("Вернуться назад")
+
+                        // Диалог выбора шаблона протокола
+                        if (showTemplateDialog) {
+                            TemplateSelectionDialog(
+                                templates = templates,
+                                onSelectTemplate = {
+                                    viewModel.applyTemplate(it)
+                                    showTemplateDialog = false
+                                },
+                                onDismiss = { showTemplateDialog = false }
+                            )
                         }
                     }
+                    is ProtocolUiState.Error -> {
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Ошибка",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = (uiState as ProtocolUiState.Error).message,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(onClick = { viewModel.retry() }) {
+                                    Text("Повторить")
+                                }
+                                OutlinedButton(onClick = onNavigateBack) {
+                                    Text("Назад")
+                                }
+                            }
+                        }
+                    }
+                    else -> { /* No-op */ }
                 }
-                else -> { /* No-op */ }
+
+                // ===== ТЕСТОВАЯ ПАНЕЛЬ ДЛЯ ОТЛАДКИ =====
+                ProtocolTestComponent(
+                    viewModel = viewModel,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                )
             }
+        }
+    }
+}
+
+// ===== КОМПОНЕНТ ИНДИКАТОРА ОФЛАЙН РЕЖИМА =====
+@Composable
+fun ProtocolOfflineIndicator(
+    isOffline: Boolean,
+    onSyncClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.animation.AnimatedVisibility(
+        visible = isOffline,
+        enter = androidx.compose.animation.slideInVertically(initialOffsetY = { -it }),
+        exit = androidx.compose.animation.slideOutVertically(targetOffsetY = { -it }),
+        modifier = modifier
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .clickable { onSyncClick() },
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CloudOff,
+                        contentDescription = "Офлайн режим",
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Column {
+                        Text(
+                            text = "Офлайн режим - протоколы",
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Данные синхронизируются при подключении",
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                Icon(
+                    imageVector = Icons.Default.Sync,
+                    contentDescription = "Синхронизировать",
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+// ===== ТЕСТОВЫЙ КОМПОНЕНТ ДЛЯ ОТЛАДКИ =====
+@Composable
+fun ProtocolTestComponent(
+    viewModel: ProtocolViewModel,
+    modifier: Modifier = Modifier
+) {
+    var showTestPanel by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        // Тестовая панель
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showTestPanel,
+            modifier = Modifier.align(Alignment.BottomEnd)
+        ) {
+            Card(
+                modifier = Modifier
+                    .widthIn(min = 280.dp, max = 320.dp)
+                    .offset(x = (-48).dp, y = (-48).dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "🧪 PROTOCOL TEST PANEL",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.getOfflineStats() },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(4.dp)
+                        ) {
+                            Text("Stats", style = MaterialTheme.typography.bodySmall)
+                        }
+
+                        Button(
+                            onClick = { viewModel.syncData() },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(4.dp)
+                        ) {
+                            Text("Sync", style = MaterialTheme.typography.bodySmall)
+                        }
+
+                        Button(
+                            onClick = { viewModel.retry() },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(4.dp)
+                        ) {
+                            Text("Retry", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+
+                    Text(
+                        "Проверьте логи с тегом 'ProtocolViewModel'",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
+
+        // Кнопка для показа/скрытия панели тестирования
+        FloatingActionButton(
+            onClick = { showTestPanel = !showTestPanel },
+            modifier = Modifier.size(40.dp),
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        ) {
+            Icon(
+                if (showTestPanel) Icons.Default.Close else Icons.Default.BugReport,
+                contentDescription = "Test Panel",
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

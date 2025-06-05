@@ -234,7 +234,7 @@ object AppModule {
 //    ): ProtocolRepository {
 //        return ProtocolRepositoryImpl(protocolApiService, authRepository)
 //    }
-
+    @Provides
     @Singleton
     fun provideProtocolRepository(
         protocolApiService: ProtocolApiService,

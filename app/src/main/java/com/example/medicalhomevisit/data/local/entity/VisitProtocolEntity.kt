@@ -25,7 +25,7 @@ import java.util.Date
     ],
     indices = [Index(value = ["visitId"], unique = true), Index(value = ["templateId"])]
 )
-data class VisitProtocolEntity(
+    data class VisitProtocolEntity(
     @PrimaryKey val id: String,
     val visitId: String,
     val templateId: String?,
