@@ -29,7 +29,6 @@ class MedicalApplication : Application(), Configuration.Provider {
         initializeWorkManager()
     }
 
-    // ← ЭТО ИСПРАВЛЕНИЕ ДЛЯ SYNCWORKER!
     override fun getWorkManagerConfiguration(): Configuration {
         return Configuration.Builder()
             .setWorkerFactory(workerFactory)  // ← БЕЗ ЭТОГО HILT НЕ РАБОТАЕТ В WORKER!
@@ -39,7 +38,6 @@ class MedicalApplication : Application(), Configuration.Provider {
 
     private fun initializeWorkManager() {
         try {
-            // Настраиваем периодическую синхронизацию
             syncManager.setupPeriodicSync()
             Log.d(TAG, "✅ WorkManager initialized successfully")
         } catch (e: Exception) {

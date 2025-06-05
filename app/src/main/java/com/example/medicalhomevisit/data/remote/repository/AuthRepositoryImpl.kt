@@ -154,6 +154,7 @@ fun UserDto.toDomainUser(): User {
             Log.w("UserMapper", "Unknown role from server: ${this.role}, defaulting to PATIENT")
             UserRole.PATIENT // Роль по умолчанию или обработка ошибки
         },
-        isEmailVerified = this.emailVerified
+        isEmailVerified = this.emailVerified,
+        medicalPersonId = this.medicalPersonId
     )
 }

@@ -15,7 +15,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -31,16 +33,29 @@ class SimpleOfflineVisitRepository @Inject constructor(
         private const val TAG = "OfflineVisitRepo"
     }
 
+    // 🔑 Получаем medicalPersonId текущего пользователя
+    private suspend fun getCurrentMedicalPersonId(): String? {
+        return try {
+            authRepository.currentUser.first()?.medicalPersonId
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to get current user's medicalPersonId: ${e.message}")
+            null
+        }
+    }
+
     // 🔄 OFFLINE-FIRST: Всегда возвращаем данные из Room
     override fun observeVisits(): Flow<List<Visit>> {
+        // Используем flatMapLatest для реагирования на смену пользователя (если _currentUserFlow в AuthRepository это поддерживает)
+        // или на изменение medicalPersonId, если бы он был в Flow.
+        // Так как medicalPersonId теперь часть User, это будет работать при смене user.
         return authRepository.currentUser.flatMapLatest { user ->
-            val userId = user?.id ?: ""
-            if (userId.isNotEmpty()) {
-                Log.d(TAG, "🔄 Observing visits for user: $userId")
-                visitDao.getVisitsForStaff(userId)
+            val medicalId = user?.medicalPersonId // Получаем medicalPersonId
+            if (!medicalId.isNullOrEmpty()) {
+                Log.d(TAG, "🔄 Observing visits for medicalPersonId: $medicalId (User ID: ${user.id})")
+                visitDao.getVisitsForStaff(medicalId) // Используем medicalPersonId для запроса
                     .map { entities -> entities.map { convertEntityToDomain(it) } }
             } else {
-                Log.d(TAG, "🔄 No user, returning empty flow")
+                Log.d(TAG, "🔄 No medicalPersonId for user ${user?.id}, returning empty flow for observeVisits")
                 flowOf(emptyList())
             }
         }
@@ -100,144 +115,163 @@ class SimpleOfflineVisitRepository @Inject constructor(
     }
 
     // 🔄 OFFLINE-FIRST: Загружаем из Room, обновляем с сервера в фоне
+    // Параметр staffId здесь - это UserEntity.id, который передает ViewModel.
+    // Нам нужно использовать medicalPersonId текущего пользователя для запроса к Room.
     override suspend fun getVisitsForStaff(staffId: String): List<Visit> {
-        val actualStaffId = staffId.ifEmpty { getCurrentUserId() }
-        Log.d(TAG, "🔍 Getting visits for staff: $actualStaffId")
+        // `staffId` (UserEntity.id) здесь больше для контекста, кто запросил,
+        // для "моих визитов" всегда используем medicalPersonId текущего юзера.
+        val medicalIdToQuery = getCurrentMedicalPersonId()
 
-        // 1. ВСЕГДА сначала возвращаем данные из Room
-        val localVisits = visitDao.getVisitsForStaffSync(actualStaffId)
-        Log.d(TAG, "📱 Found ${localVisits.size} visits in Room")
+        if (medicalIdToQuery.isNullOrEmpty()) {
+            Log.w(TAG, "🔍 No medicalPersonId for current user (called with staffId: $staffId). Returning empty list.")
+            tryLoadFromServer() // Все равно попытаемся загрузить с сервера, т.к. сервер использует токен
+            return emptyList()
+        }
 
-        // 2. В фоне пытаемся обновить с сервера
-        tryLoadFromServer(actualStaffId)
+        Log.d(TAG, "🔍 Getting visits for medicalPersonId: $medicalIdToQuery (requested by user with UserEntity.id: $staffId)")
 
-        // 3. Возвращаем локальные данные (могут быть пустые, но это OK)
+        // 1. ВСЕГДА сначала возвращаем данные из Room используя medicalPersonId
+        val localVisits = visitDao.getVisitsForStaffSync(medicalIdToQuery)
+        Log.d(TAG, "📱 Found ${localVisits.size} visits in Room for medicalPersonId: $medicalIdToQuery")
+
+        // 2. В фоне пытаемся обновить с сервера (сервер использует токен для определения пользователя)
+        tryLoadFromServer() // Удален параметр staffId, т.к. он не использовался в getMyVisits
+
+        // 3. Возвращаем локальные данные
         return localVisits.map { convertEntityToDomain(it) }
     }
 
     // 🔄 OFFLINE-FIRST: Загружаем для даты
     override suspend fun getVisitsForDate(date: Date): List<Visit> {
-        val currentUserId = getCurrentUserId()
-        Log.d(TAG, "🔍 Getting visits for date for user: $currentUserId")
+        val medicalIdToQuery = getCurrentMedicalPersonId()
+
+        if (medicalIdToQuery.isNullOrEmpty()) {
+            Log.w(TAG, "🔍 No medicalPersonId for current user. Cannot effectively filter visits for date by staff from Room.")
+            tryLoadFromServerForDate(date) // Пытаемся загрузить с сервера, может там что-то будет
+            return emptyList() // Или возвращаем все, а ViewModel фильтрует? Пока так.
+        }
+        Log.d(TAG, "🔍 Getting visits for date $date for medicalPersonId: $medicalIdToQuery")
 
         // 1. Сначала пытаемся загрузить с сервера для конкретной даты
-        tryLoadFromServerForDate(date, currentUserId)
+        tryLoadFromServerForDate(date) // Удален параметр userId
 
-        // 2. Возвращаем все локальные данные (фильтрация по дате будет в ViewModel)
-        val localVisits = visitDao.getVisitsForStaffSync(currentUserId)
-        Log.d(TAG, "📱 Returning ${localVisits.size} visits from Room")
+        // 2. Возвращаем из Room отфильтрованные по medicalPersonId.
+        // Фильтрация по дате происходит в ViewModel или должна быть добавлена в DAO, если нужна именно здесь.
+        // Текущий getVisitsForStaffSync не фильтрует по дате.
+        // Если нужна фильтрация по дате и сотруднику в Room, нужен новый метод в DAO.
+        // Пока что, как и раньше, возвращаем все для сотрудника, а ViewModel фильтрует по дате.
+        val localVisits = visitDao.getVisitsForStaffSync(medicalIdToQuery)
+        Log.d(TAG, "📱 Returning ${localVisits.size} visits from Room for medicalPersonId: $medicalIdToQuery (date filtering in ViewModel)")
 
         return localVisits.map { convertEntityToDomain(it) }
     }
 
-    // 🔄 OFFLINE-FIRST: Обновление статуса
+    // ... updateVisitStatus, updateVisitNotes, getVisitById остаются без изменений ...
     override suspend fun updateVisitStatus(visitId: String, newStatus: VisitStatus) {
         Log.d(TAG, "🔄 Updating visit status: $visitId -> $newStatus")
-
-        // 1. СНАЧАЛА сохраняем в Room (всегда работает)
         visitDao.updateVisitStatus(visitId, newStatus.name)
         Log.d(TAG, "✅ Updated status in Room, marked as unsynced")
-
-        // 2. Запускаем синхронизацию в фоне
         syncManager.syncNow()
     }
 
-    // 🔄 OFFLINE-FIRST: Обновление заметок
     override suspend fun updateVisitNotes(visitId: String, notes: String) {
         Log.d(TAG, "🔄 Updating visit notes: $visitId")
-
-        // 1. СНАЧАЛА сохраняем в Room
         visitDao.updateVisitNotes(visitId, notes)
         Log.d(TAG, "✅ Updated notes in Room, marked as unsynced")
-
-        // 2. Запускаем синхронизацию в фоне
         syncManager.syncNow()
     }
 
-    // 🔄 OFFLINE-FIRST: Получение визита по ID
     override suspend fun getVisitById(visitId: String): Visit {
         val entity = visitDao.getVisitById(visitId)
         return entity?.let { convertEntityToDomain(it) }
-            ?: throw Exception("Visit not found")
+            ?: throw Exception("Visit not found for id: $visitId")
     }
 
     // 📡 ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ДЛЯ РАБОТЫ С СЕРВЕРОМ
 
-    private suspend fun tryLoadFromServer(staffId: String) {
+    private suspend fun tryLoadFromServer() {
         try {
-            Log.d(TAG, "📡 Trying to load from server...")
-            val response = apiService.getMyVisits()
+            Log.d(TAG, "📡 Trying to load from server (getMyVisits)...")
+            val response = apiService.getMyVisits() // Сервер определит пользователя по токену
 
             if (response.isSuccessful) {
                 val visitDtos = response.body() ?: emptyList()
                 Log.d(TAG, "✅ Server returned ${visitDtos.size} visits")
-
-                // Конвертируем и сохраняем в Room
                 val entities = visitDtos.map { dto ->
+                    // dto.assignedStaffId это MedicalPerson.id, что VisitEntity.assignedStaffId и должен хранить
                     convertDtoToEntity(dto, isSynced = true)
                 }
                 visitDao.insertVisits(entities)
                 Log.d(TAG, "💾 Saved ${entities.size} visits to Room")
             } else {
-                Log.w(TAG, "❌ Server error: ${response.code()}")
+                Log.w(TAG, "❌ Server error on getMyVisits: ${response.code()} - ${response.message()}")
             }
         } catch (e: Exception) {
-            Log.w(TAG, "❌ Network error: ${e.message}")
-            // В офлайн режиме это нормально - просто продолжаем работу с Room
+            Log.w(TAG, "❌ Network error on getMyVisits: ${e.message}")
         }
     }
 
-    private suspend fun tryLoadFromServerForDate(date: Date, userId: String) {
+    // Удален неиспользуемый параметр userId
+    private suspend fun tryLoadFromServerForDate(date: Date) {
         try {
-            Log.d(TAG, "📡 Trying to load from server for date...")
-            val dateString = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(date)
-            val response = apiService.getMyVisitsForDate(dateString)
+            Log.d(TAG, "📡 Trying to load from server for date $date...")
+            // Убедись, что формат даты соответствует ожиданиям сервера
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val dateString = dateFormat.format(date)
+            val response = apiService.getMyVisitsForDate(dateString) // Сервер определит пользователя по токену
 
             if (response.isSuccessful) {
                 val visitDtos = response.body() ?: emptyList()
-                Log.d(TAG, "✅ Server returned ${visitDtos.size} visits for date")
-
+                Log.d(TAG, "✅ Server returned ${visitDtos.size} visits for date $dateString")
                 val entities = visitDtos.map { dto ->
                     convertDtoToEntity(dto, isSynced = true)
                 }
-                visitDao.insertVisits(entities)
-                Log.d(TAG, "💾 Saved ${entities.size} visits to Room")
+                visitDao.insertVisits(entities) // Используем insertVisits для пакетной вставки/обновления
+                Log.d(TAG, "💾 Saved ${entities.size} visits to Room for date $dateString")
             } else {
-                Log.w(TAG, "❌ Server error for date: ${response.code()}")
+                Log.w(TAG, "❌ Server error for date $dateString: ${response.code()} - ${response.message()}")
             }
         } catch (e: Exception) {
-            Log.w(TAG, "❌ Network error for date: ${e.message}")
+            Log.w(TAG, "❌ Network error for date $date: ${e.message}")
         }
     }
 
-    private suspend fun getCurrentUserId(): String {
-        return try {
-            authRepository.currentUser.first()?.id ?: ""
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to get current user ID: ${e.message}")
-            ""
-        }
-    }
+//    private suspend fun getCurrentUserId(): String {
+//        return try {
+//            authRepository.currentUser.first()?.id ?: ""
+//        } catch (e: Exception) {
+//            Log.w(TAG, "Failed to get current user ID: ${e.message}")
+//            ""
+//        }
+//    }
 
     // 🔄 МЕТОДЫ ДЛЯ СИНХРОНИЗАЦИИ И КЕШИРОВАНИЯ
 
+    // 🔄 МЕТОДЫ ДЛЯ СИНХРОНИЗАЦИИ И КЕШИРОВАНИЯ
     override suspend fun syncVisits(): Result<List<Visit>> {
         return try {
-            Log.d(TAG, "🔄 Manual sync requested")
-            syncManager.syncNow()
+            Log.d(TAG, "🔄 Manual sync requested by user")
+            syncManager.syncNow() // Запускаем фоновую синхронизацию WorkManager
 
-            // Возвращаем текущие данные из Room
-            val currentUserId = getCurrentUserId()
-            val localVisits = visitDao.getVisitsForStaffSync(currentUserId)
-            Result.success(localVisits.map { convertEntityToDomain(it) })
+            // После запроса на синхронизацию, возвращаем текущие данные из Room для medicalPersonId
+            val medicalId = getCurrentMedicalPersonId()
+            if (!medicalId.isNullOrEmpty()) {
+                val localVisits = visitDao.getVisitsForStaffSync(medicalId)
+                Result.success(localVisits.map { convertEntityToDomain(it) })
+            } else {
+                Log.w(TAG, "Cannot fetch visits for sync: medicalPersonId is null")
+                Result.success(emptyList()) // или Result.failure, если это критично
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Manual sync failed: ${e.message}")
+            Log.e(TAG, "❌ Manual sync trigger failed: ${e.message}")
             Result.failure(e)
         }
     }
 
     override suspend fun cacheVisits(visits: List<Visit>) {
         val entities = visits.map { visit ->
+            // При кэшировании мы уже имеем domain model Visit,
+            // в котором visit.assignedStaffId должен быть MedicalPerson.id
             convertDomainToEntity(visit, isSynced = true)
         }
         visitDao.insertVisits(entities)
@@ -245,9 +279,12 @@ class SimpleOfflineVisitRepository @Inject constructor(
     }
 
     override suspend fun getCachedVisits(): List<Visit> {
-        val currentUserId = getCurrentUserId()
-        val entities = visitDao.getVisitsForStaffSync(currentUserId)
-        return entities.map { convertEntityToDomain(it) }
+        val medicalId = getCurrentMedicalPersonId()
+        if (!medicalId.isNullOrEmpty()) {
+            val entities = visitDao.getVisitsForStaffSync(medicalId)
+            return entities.map { convertEntityToDomain(it) }
+        }
+        return emptyList()
     }
 
     // 📊 МЕТОДЫ НЕ ТРЕБУЮЩИЕ ОФЛАЙН РЕЖИМА (пока заглушки)
