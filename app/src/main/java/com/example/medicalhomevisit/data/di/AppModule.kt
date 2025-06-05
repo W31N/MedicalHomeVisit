@@ -19,6 +19,7 @@ import com.example.medicalhomevisit.data.remote.api.ProtocolApiService
 import com.example.medicalhomevisit.data.remote.network.TokenManager
 import com.example.medicalhomevisit.data.remote.api.VisitApiService
 import com.example.medicalhomevisit.data.remote.repository.AuthRepositoryImpl
+import com.example.medicalhomevisit.data.repository.SimpleOfflinePatientRepository
 import com.example.medicalhomevisit.data.repository.SimpleOfflineProtocolRepository
 import com.example.medicalhomevisit.data.repository.SimpleOfflineVisitRepository
 import com.example.medicalhomevisit.data.sync.SyncManager
@@ -213,14 +214,22 @@ object AppModule {
         visitDao: VisitDao,
         visitApiService: VisitApiService,
         authRepository: AuthRepository,
-        syncManager: SyncManager
+        syncManager: SyncManager,
+        @OfflinePatientRepository patientRepository: PatientRepository // ← ДОБАВЛЕН НЕДОСТАЮЩИЙ ПАРАМЕТР
     ): VisitRepository {
-        return SimpleOfflineVisitRepository(visitDao, visitApiService, authRepository, syncManager)
+        return SimpleOfflineVisitRepository(
+            visitDao,
+            visitApiService,
+            authRepository,
+            syncManager,
+            patientRepository
+        )
     }
 
     @Provides
     @Singleton
-    fun providePatientRepository(
+    @OnlinePatientRepository
+    fun provideOnlinePatientRepository(
         patientApiService: PatientApiService,
         authRepository: AuthRepository
     ): PatientRepository {
@@ -238,6 +247,18 @@ object AppModule {
 //    ): ProtocolRepository {
 //        return ProtocolRepositoryImpl(protocolApiService, authRepository)
 //    }
+
+    @Provides
+    @Singleton
+    @OfflinePatientRepository
+    fun provideOfflinePatientRepository(
+        patientDao: PatientDao,
+        patientApiService: PatientApiService,
+        authRepository: AuthRepository
+    ): PatientRepository {
+        return SimpleOfflinePatientRepository(patientDao, patientApiService, authRepository)
+    }
+
     @Provides
     @Singleton
     fun provideProtocolRepository(

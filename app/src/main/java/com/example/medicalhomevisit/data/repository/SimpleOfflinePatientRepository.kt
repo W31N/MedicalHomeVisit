@@ -35,20 +35,46 @@ class SimpleOfflinePatientRepository @Inject constructor(
     override suspend fun getPatientById(patientId: String): Patient {
         Log.d(TAG, "🔍 Getting patient by ID: $patientId")
 
-        // 1. Сначала возвращаем из Room
+        // 1. Сначала проверяем локальную базу данных
         val localPatient = patientDao.getPatientById(patientId)?.toDomainModel()
 
-        // 2. В фоне пытаемся обновить с сервера
-        tryRefreshPatientFromServer(patientId)
+        if (localPatient != null) {
+            Log.d(TAG, "✅ Patient found in local database: ${localPatient.fullName}")
+            // В фоне пытаемся обновить с сервера
+            tryRefreshPatientFromServer(patientId)
+            return localPatient
+        }
 
-        // 3. Если локально не найден, выбрасываем исключение
-        return localPatient ?: throw Exception("Пациент с ID $patientId не найден")
+        // 2. Если пациент не найден локально, синхронно загружаем с сервера
+        Log.d(TAG, "📱 Patient not found locally, trying to load from server...")
+
+        try {
+            val response = patientApiService.getPatientById(patientId)
+            if (response.isSuccessful && response.body() != null) {
+                val dto = response.body()!!
+                val patient = dto.toDomainModel()
+
+                // Сохраняем в локальную базу данных
+                val entity = dto.toEntity(isSynced = true)
+                patientDao.insertPatient(entity)
+
+                Log.d(TAG, "✅ Patient loaded from server and cached: ${patient.fullName}")
+                return patient
+            } else {
+                Log.e(TAG, "❌ Server error: ${response.code()} ${response.message()}")
+                throw Exception("Ошибка загрузки пациента с сервера: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Network error loading patient: ${e.message}", e)
+            throw Exception("Пациент с ID $patientId не найден")
+        }
     }
 
+    // В SimpleOfflinePatientRepository
     override fun observePatient(patientId: String): Flow<Patient> {
         Log.d(TAG, "👁️ Observing patient: $patientId")
 
-        // Запускаем обновление в фоне
+        // Запускаем обновление в фоне (если пациент уже есть в базе)
         tryRefreshPatientFromServer(patientId)
 
         return patientDao.observePatient(patientId).map { entity ->

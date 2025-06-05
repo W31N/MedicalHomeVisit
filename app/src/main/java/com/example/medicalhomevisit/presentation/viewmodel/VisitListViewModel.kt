@@ -3,11 +3,13 @@ package com.example.medicalhomevisit.presentation.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.medicalhomevisit.data.di.OfflinePatientRepository
 import com.example.medicalhomevisit.data.repository.SimpleOfflineVisitRepository
 import com.example.medicalhomevisit.data.sync.SyncManager
 import com.example.medicalhomevisit.domain.model.Visit
 import com.example.medicalhomevisit.domain.model.VisitStatus
 import com.example.medicalhomevisit.domain.repository.AuthRepository
+import com.example.medicalhomevisit.domain.repository.PatientRepository
 import com.example.medicalhomevisit.domain.repository.VisitRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +26,8 @@ import javax.inject.Inject
 class VisitListViewModel @Inject constructor(
     private val visitRepository: VisitRepository,
     private val authRepository: AuthRepository,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    @OfflinePatientRepository private val patientRepository: PatientRepository // ← ДОБАВИТЬ
 ) : ViewModel() {
 
     companion object {
@@ -80,8 +83,10 @@ class VisitListViewModel @Inject constructor(
                     _allVisits.value = allVisits
                     applyFilters()
 
+                    // 🆕 ПРОАКТИВНО КЭШИРУЕМ ПАЦИЕНТОВ
+                    preloadPatientsForVisits(allVisits)
+
                     // ✅ ИСПРАВЛЕНО: Правильная логика определения офлайн режима
-                    // Если мы пытались загрузить данные и получили их - значит не офлайн
                     if (hasTriedInitialLoad && allVisits.isNotEmpty()) {
                         _isOffline.value = false
                     }
@@ -89,6 +94,31 @@ class VisitListViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Error observing visits: ${e.message}", e)
                 _uiState.value = VisitListUiState.Error(e.message ?: "Ошибка загрузки данных")
+            }
+        }
+    }
+
+    private fun preloadPatientsForVisits(visits: List<Visit>) {
+        if (visits.isEmpty()) return
+
+        viewModelScope.launch {
+            try {
+                val patientIds = visits.map { it.patientId }.distinct()
+                Log.d(TAG, "🔄 Preloading ${patientIds.size} patients...")
+
+                // Запускаем загрузку всех пациентов параллельно
+                patientIds.forEach { patientId ->
+                    launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            patientRepository.getPatientById(patientId)
+                            Log.d(TAG, "✅ Cached patient: $patientId")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "⚠️ Failed to cache patient $patientId: ${e.message}")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "❌ Error preloading patients: ${e.message}")
             }
         }
     }

@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.medicalhomevisit.data.di.OfflinePatientRepository
 import com.example.medicalhomevisit.domain.model.AppointmentRequest
 import com.example.medicalhomevisit.domain.model.Patient
 import com.example.medicalhomevisit.domain.model.RequestStatus
@@ -27,7 +28,7 @@ class VisitDetailViewModel @Inject constructor(
     private val visitRepository: VisitRepository,
     private val appointmentRequestRepository: AppointmentRequestRepository,
 //    private val protocolRepository: ProtocolRepository,
-    private val patientRepository: PatientRepository
+    @OfflinePatientRepository private val patientRepository: PatientRepository
 ) : ViewModel() {
 
     companion object {
@@ -57,8 +58,8 @@ class VisitDetailViewModel @Inject constructor(
 
     init {
         Log.d(TAG, "VisitDetailViewModel initialized with visitId: $visitId")
-        loadVisitDetails()
-        observeVisitChanges()
+        observeVisitChanges() // Наблюдает за изменениями самого визита
+        loadVisitDetails()    // Загружает детали визита и инициирует загрузку/наблюдение за пациентом
     }
 
     private fun observeVisitChanges() {
@@ -144,35 +145,47 @@ class VisitDetailViewModel @Inject constructor(
     private fun loadPatientDetails(patientId: String) {
         viewModelScope.launch {
             _patientState.value = PatientState.Loading
-            Log.d(TAG, "Attempting to load patient details for patientId: '$patientId'") // <--- ЛОГ
+            Log.d(TAG, "Attempting to load patient details for patientId: '$patientId'")
+
             if (patientId.isBlank()) {
                 Log.e(TAG, "Patient ID is blank, cannot load details.")
                 _patientState.value = PatientState.Error("ID пациента не указан для визита")
                 return@launch
             }
+
+            // Сначала пытаемся загрузить пациента синхронно (чтобы убедиться что он есть в кэше)
             try {
                 val patient = patientRepository.getPatientById(patientId)
                 _patientState.value = PatientState.Success(patient)
-                Log.d(TAG, "Patient loaded successfully from repository: ${patient.fullName}") // <--- ЛОГ
+                Log.d(TAG, "Patient loaded successfully: ${patient.fullName}")
+
+                // Теперь настраиваем наблюдение за изменениями
                 observePatientChanges(patientId)
+
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading patient from repository for ID '$patientId': ${e.message}", e) // <--- ЛОГ
-                // Проверяем кэш
+                Log.e(TAG, "Error loading patient: ${e.message}", e)
+
+                // Проверяем кэш как fallback
                 try {
                     val cachedPatient = patientRepository.getCachedPatientById(patientId)
                     if (cachedPatient != null) {
                         _patientState.value = PatientState.Success(cachedPatient)
                         _isOffline.value = true
-                        Log.d(TAG, "Patient loaded successfully from cache: ${cachedPatient.fullName}") // <--- ЛОГ
+                        Log.d(TAG, "Patient loaded from cache: ${cachedPatient.fullName}")
+                        // Все равно пытаемся наблюдать за изменениями
+                        observePatientChanges(patientId)
                     } else {
-                        _patientState.value =
-                            PatientState.Error(e.message ?: "Ошибка загрузки данных пациента")
-                        Log.e(TAG, "Patient not found in cache for ID '$patientId'. Previous error: ${e.message}") // <--- ЛОГ
+                        _patientState.value = PatientState.Error(
+                            "Не удалось загрузить данные пациента. " +
+                                    "Проверьте подключение к интернету и повторите попытку."
+                        )
+                        Log.e(TAG, "Patient not found anywhere for ID '$patientId'")
                     }
                 } catch (cacheEx: Exception) {
-                    _patientState.value =
-                        PatientState.Error(e.message ?: "Ошибка загрузки данных пациента")
-                    Log.e(TAG, "Error loading patient from cache for ID '$patientId': ${cacheEx.message}", cacheEx) // <--- ЛОГ
+                    _patientState.value = PatientState.Error(
+                        "Ошибка загрузки данных пациента: ${cacheEx.message}"
+                    )
+                    Log.e(TAG, "Error accessing cache for patient ID '$patientId': ${cacheEx.message}", cacheEx)
                 }
             }
         }
@@ -183,9 +196,11 @@ class VisitDetailViewModel @Inject constructor(
             try {
                 patientRepository.observePatient(patientId).collectLatest { patient ->
                     _patientState.value = PatientState.Success(patient)
+                    Log.d(TAG, "Patient details updated via observation: ${patient.fullName}")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error observing patient: ${e.message}", e)
+                Log.e(TAG, "Error observing patient changes: ${e.message}", e)
+                // Не меняем состояние, если наблюдение прервалось - остаемся на последних успешных данных
             }
         }
     }

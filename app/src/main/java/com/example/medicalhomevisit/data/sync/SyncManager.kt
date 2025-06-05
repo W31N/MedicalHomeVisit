@@ -32,13 +32,16 @@ class SyncManager @Inject constructor(
         Log.d(TAG, "⚙️ Setting up periodic sync for all data...")
         setupPeriodicVisitSync()
         setupPeriodicProtocolSync()
+        setupPeriodicPatientSync()
     }
 
     fun cancelAllSync() {
         Log.d(TAG, "❌ Cancelling all sync work...")
         cancelVisitSync()
         cancelProtocolSync()
+        cancelPatientSync()
     }
+
 
     // ===== СИНХРОНИЗАЦИЯ ВИЗИТОВ =====
 
@@ -134,6 +137,51 @@ class SyncManager @Inject constructor(
         workManager.cancelUniqueWork("${ProtocolSyncWorker.WORK_NAME}_periodic")
     }
 
+    fun syncPatientsNow() {
+        Log.d(TAG, "🚀 Starting immediate patient sync...")
+
+        val syncRequest = OneTimeWorkRequestBuilder<PatientSyncWorker>()
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .build()
+
+        workManager.enqueueUniqueWork(
+            PatientSyncWorker.WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            syncRequest
+        )
+    }
+
+    fun setupPeriodicPatientSync() {
+        Log.d(TAG, "⚙️ Setting up periodic patient sync...")
+
+        val periodicSyncRequest = PeriodicWorkRequestBuilder<PatientSyncWorker>(
+            30, TimeUnit.MINUTES // Каждые 30 минут (пациенты обновляются реже)
+        )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .setRequiresBatteryNotLow(true)
+                    .build()
+            )
+            .build()
+
+        workManager.enqueueUniquePeriodicWork(
+            "${PatientSyncWorker.WORK_NAME}_periodic",
+            ExistingPeriodicWorkPolicy.KEEP,
+            periodicSyncRequest
+        )
+    }
+
+    fun cancelPatientSync() {
+        Log.d(TAG, "❌ Cancelling patient sync work...")
+        workManager.cancelUniqueWork(PatientSyncWorker.WORK_NAME)
+        workManager.cancelUniqueWork("${PatientSyncWorker.WORK_NAME}_periodic")
+    }
+
     // ===== СОСТОЯНИЕ СИНХРОНИЗАЦИИ =====
 
     fun getSyncStatus(): LiveData<List<WorkInfo>> {
@@ -143,11 +191,13 @@ class SyncManager @Inject constructor(
     fun isSyncing(): Boolean {
         val visitWorkInfos = workManager.getWorkInfosForUniqueWork(VisitSyncWorker.WORK_NAME)
         val protocolWorkInfos = workManager.getWorkInfosForUniqueWork(ProtocolSyncWorker.WORK_NAME)
+        val patientWorkInfos = workManager.getWorkInfosForUniqueWork(PatientSyncWorker.WORK_NAME)
 
         return try {
             val visitSyncing = visitWorkInfos.get().any { it.state == WorkInfo.State.RUNNING }
             val protocolSyncing = protocolWorkInfos.get().any { it.state == WorkInfo.State.RUNNING }
-            visitSyncing || protocolSyncing
+            val patientSyncing = patientWorkInfos.get().any { it.state == WorkInfo.State.RUNNING }
+            visitSyncing || protocolSyncing || patientSyncing
         } catch (e: Exception) {
             Log.w(TAG, "Error checking sync status: ${e.message}")
             false

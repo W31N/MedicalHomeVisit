@@ -3,6 +3,7 @@ package com.example.medicalhomevisit.presentation.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.medicalhomevisit.data.di.OnlinePatientRepository
 import com.example.medicalhomevisit.domain.model.Gender
 import com.example.medicalhomevisit.domain.model.PatientProfileUpdate
 import com.example.medicalhomevisit.domain.repository.PatientRepository
@@ -16,7 +17,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class PatientProfileViewModel @Inject constructor(
-    private val patientRepository: PatientRepository
+    @OnlinePatientRepository private val patientRepository: PatientRepository
 ) : ViewModel() {
 
     companion object {
