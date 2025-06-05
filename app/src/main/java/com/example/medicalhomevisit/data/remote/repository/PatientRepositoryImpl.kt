@@ -10,7 +10,6 @@ import com.example.medicalhomevisit.domain.model.PatientProfileUpdate
 import com.example.medicalhomevisit.domain.repository.PatientRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -53,58 +52,6 @@ class PatientRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading patient by ID", e)
-            throw e
-        }
-    }
-
-    override suspend fun searchPatients(query: String): List<Patient> {
-        return try {
-            Log.d(TAG, "Searching patients with query: $query")
-
-            if (query.isBlank()) {
-                return emptyList()
-            }
-
-            val response = patientApiService.searchPatients(query)
-
-            if (response.isSuccessful) {
-                val patientDtos = response.body() ?: emptyList()
-                val patients = patientDtos.map { convertDtoToPatient(it) }
-
-                updatePatientsInCache(patients)
-
-                Log.d(TAG, "Successfully found ${patients.size} patients")
-                patients
-            } else {
-                Log.e(TAG, "Failed to search patients: ${response.code()} ${response.message()}")
-                throw Exception("Ошибка поиска пациентов: ${response.code()}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error searching patients", e)
-            throw e
-        }
-    }
-
-    override suspend fun getAllPatients(): List<Patient> {
-        return try {
-            Log.d(TAG, "Getting all patients")
-            val response = patientApiService.getAllPatients()
-
-            if (response.isSuccessful) {
-                val patientDtos = response.body() ?: emptyList()
-                val patients = patientDtos.map { convertDtoToPatient(it) }
-
-                _cachedPatients.value = patients
-                _patientsFlow.value = patients
-
-                Log.d(TAG, "Successfully loaded ${patients.size} patients")
-                patients
-            } else {
-                Log.e(TAG, "Failed to load all patients: ${response.code()} ${response.message()}")
-                throw Exception("Ошибка загрузки всех пациентов: ${response.code()}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading all patients", e)
             throw e
         }
     }
@@ -164,10 +111,6 @@ class PatientRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun observePatients(): Flow<List<Patient>> {
-        return _patientsFlow.asStateFlow()
-    }
-
     override fun observePatient(patientId: String): Flow<Patient> {
         return _patientsFlow.map { patients ->
             patients.find { it.id == patientId }
@@ -175,29 +118,8 @@ class PatientRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun cachePatients(patients: List<Patient>) {
-        _cachedPatients.value = patients
-        Log.d(TAG, "Cached ${patients.size} patients")
-    }
-
-    override suspend fun getCachedPatients(): List<Patient> {
-        return _cachedPatients.value
-    }
-
     override suspend fun getCachedPatientById(patientId: String): Patient? {
         return _cachedPatients.value.find { it.id == patientId }
-    }
-
-    override suspend fun syncPatients(): Result<List<Patient>> {
-        return try {
-            val patients = getAllPatients()
-            _cachedPatients.value = patients
-            _patientsFlow.value = patients
-            Result.success(patients)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error syncing patients", e)
-            Result.failure(e)
-        }
     }
 
     private fun updatePatientInCache(patient: Patient) {
@@ -212,18 +134,6 @@ class PatientRepositoryImpl @Inject constructor(
 
         _cachedPatients.value = currentPatients
         _patientsFlow.value = currentPatients
-    }
-
-    private fun updatePatientsInCache(newPatients: List<Patient>) {
-        val currentPatients = _cachedPatients.value.associateBy { it.id }.toMutableMap()
-
-        newPatients.forEach { patient ->
-            currentPatients[patient.id] = patient
-        }
-
-        val updatedList = currentPatients.values.toList()
-        _cachedPatients.value = updatedList
-        _patientsFlow.value = updatedList
     }
 
     private fun convertDtoToPatient(dto: PatientDto): Patient {

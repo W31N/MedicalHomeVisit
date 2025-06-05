@@ -22,7 +22,3 @@ data class VisitDto(
 data class VisitStatusUpdateRequest(
     val status: String
 )
-
-data class VisitNotesUpdateRequest(
-    val notes: String
-)

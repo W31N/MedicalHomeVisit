@@ -165,27 +165,6 @@ class SimpleOfflineProtocolRepository @Inject constructor(
         return saveProtocol(updatedProtocol)
     }
 
-    override suspend fun deleteProtocol(visitId: String) {
-        Log.d(TAG, "🗑️ Deleting protocol for visit $visitId")
-
-        val existingEntity = visitProtocolDao.getProtocolByVisitIdOnce(visitId)
-        if (existingEntity != null) {
-            if (existingEntity.syncAction == "CREATE") {
-                visitProtocolDao.deleteProtocolById(existingEntity.id)
-                Log.d(TAG, "✅ Locally created protocol deleted")
-            } else {
-                val markedForDeletion = existingEntity.copy(
-                    isSynced = false,
-                    syncAction = "DELETE",
-                    updatedAt = Date()
-                )
-                visitProtocolDao.insertProtocol(markedForDeletion)
-                syncManager.syncProtocolsNow()
-                Log.d(TAG, "✅ Protocol marked for deletion")
-            }
-        }
-    }
-
     override suspend fun getProtocolTemplates(): List<ProtocolTemplate> {
         Log.d(TAG, "📋 Getting protocol templates")
 
@@ -209,17 +188,6 @@ class SimpleOfflineProtocolRepository @Inject constructor(
         return Result.success(Unit)
     }
 
-    override suspend fun cacheProtocols(protocols: List<VisitProtocol>) {
-        val entities = protocols.map { it.toEntity(isSynced = true, syncAction = null) }
-        visitProtocolDao.insertProtocols(entities)
-        Log.d(TAG, "💾 Cached ${entities.size} protocols")
-    }
-
-    override suspend fun getCachedProtocols(): List<VisitProtocol> {
-        Log.w(TAG, "getCachedProtocols not fully implemented - needs DAO method")
-        return emptyList()
-    }
-
     override suspend fun getCachedProtocolForVisit(visitId: String): VisitProtocol? {
         return visitProtocolDao.getProtocolByVisitIdOnce(visitId)?.toDomainModel()
     }
@@ -236,13 +204,13 @@ class SimpleOfflineProtocolRepository @Inject constructor(
                 Log.d(TAG, "✅ Protocol refreshed from server")
             }
         } catch (e: Exception) {
-            Log.w(TAG, "❌ Failed to refresh protocol from server: ${e.message}")
+            Log.w(TAG, "Failed to refresh protocol from server: ${e.message}")
         }
     }
 
     private suspend fun tryApplyTemplateOnServer(visitId: String, templateId: String): VisitProtocol? {
         return try {
-            Log.d(TAG, "📡 Applying template on server")
+            Log.d(TAG, "Applying template on server")
             val response = protocolApiService.applyTemplate(visitId,
                 com.example.medicalhomevisit.data.remote.dto.ApplyTemplateRequest(templateId))
 
@@ -250,21 +218,21 @@ class SimpleOfflineProtocolRepository @Inject constructor(
                 val dto = response.body()!!
                 val entity = dto.toEntity(isSynced = true)
                 visitProtocolDao.insertProtocol(entity)
-                Log.d(TAG, "✅ Template applied on server")
+                Log.d(TAG, "Template applied on server")
                 entity.toDomainModel()
             } else {
-                Log.w(TAG, "❌ Failed to apply template on server: ${response.code()}")
+                Log.w(TAG, "Failed to apply template on server: ${response.code()}")
                 null
             }
         } catch (e: Exception) {
-            Log.w(TAG, "❌ Error applying template on server: ${e.message}")
+            Log.w(TAG, "Error applying template on server: ${e.message}")
             null
         }
     }
 
     private suspend fun tryRefreshTemplatesFromServer() {
         try {
-            Log.d(TAG, "📡 Refreshing templates from server")
+            Log.d(TAG, "Refreshing templates from server")
             val response = protocolApiService.getProtocolTemplates()
 
             if (response.isSuccessful && response.body() != null) {
@@ -274,7 +242,7 @@ class SimpleOfflineProtocolRepository @Inject constructor(
                 Log.d(TAG, "✅ ${entities.size} templates refreshed from server")
             }
         } catch (e: Exception) {
-            Log.w(TAG, "❌ Failed to refresh templates: ${e.message}")
+            Log.w(TAG, "Failed to refresh templates: ${e.message}")
         }
     }
 

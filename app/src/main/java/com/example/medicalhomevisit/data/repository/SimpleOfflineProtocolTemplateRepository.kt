@@ -7,7 +7,6 @@ import com.example.medicalhomevisit.data.remote.api.ProtocolApiService
 import com.example.medicalhomevisit.data.remote.dto.ProtocolTemplateDto
 import com.example.medicalhomevisit.domain.model.ProtocolTemplate
 import com.example.medicalhomevisit.domain.repository.ProtocolTemplateRepository
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import java.util.Date
@@ -23,12 +22,6 @@ class SimpleOfflineProtocolTemplateRepository @Inject constructor(
 
     companion object {
         private const val TAG = "OfflinePTemplateRepo"
-    }
-
-    override fun observeAllTemplates(): Flow<List<ProtocolTemplate>> {
-        return protocolTemplateDao.getAllTemplates().map { entities ->
-            entities.map { it.toDomainModel() }
-        }
     }
 
     override suspend fun getAllTemplates(): List<ProtocolTemplate> {
@@ -47,31 +40,21 @@ class SimpleOfflineProtocolTemplateRepository @Inject constructor(
                 if (templateDtos.isNotEmpty()) {
                     val templateEntities = templateDtos.map { it.toEntity() }
                     protocolTemplateDao.insertTemplates(templateEntities)
-                    Log.d(TAG, "✅ Refreshed and saved ${templateEntities.size} templates to Room.")
+                    Log.d(TAG, "Refreshed and saved ${templateEntities.size} templates to Room.")
                 } else {
-                    Log.d(TAG, "✅ Server returned 0 templates. Local cache might be cleared if 'insertTemplates' handles empty list by deleting.")
+                    Log.d(TAG, "Server returned 0 templates. Local cache might be cleared if 'insertTemplates' handles empty list by deleting.")
                     protocolTemplateDao.insertTemplates(emptyList())
 
                 }
                 Result.success(Unit)
             } else {
                 val errorMsg = "Error fetching templates: ${response.code()} - ${response.message()}"
-                Log.w(TAG, "❌ $errorMsg")
+                Log.w(TAG, errorMsg)
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Network error refreshing templates: ${e.message}", e)
+            Log.e(TAG, "Network error refreshing templates: ${e.message}", e)
             Result.failure(e)
-        }
-    }
-
-    override suspend fun getTemplateById(templateId: String): ProtocolTemplate? {
-        return protocolTemplateDao.getTemplateById(templateId)?.toDomainModel()
-    }
-
-    override fun searchTemplates(query: String): Flow<List<ProtocolTemplate>> {
-        return protocolTemplateDao.searchTemplates(query).map { entities ->
-            entities.map { it.toDomainModel() }
         }
     }
 

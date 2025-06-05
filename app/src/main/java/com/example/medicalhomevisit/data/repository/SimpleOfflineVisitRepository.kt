@@ -120,13 +120,6 @@ class SimpleOfflineVisitRepository @Inject constructor(
         syncManager.syncNow()
     }
 
-    override suspend fun updateVisitNotes(visitId: String, notes: String) {
-        Log.d(TAG, "Updating visit notes: $visitId")
-        visitDao.updateVisitNotes(visitId, notes)
-        Log.d(TAG, "Updated notes in Room, marked as unsynced")
-        syncManager.syncNow()
-    }
-
     override suspend fun getVisitById(visitId: String): Visit {
         val entity = visitDao.getVisitById(visitId)
         return entity?.let { convertEntityToDomain(it) }
@@ -177,62 +170,12 @@ class SimpleOfflineVisitRepository @Inject constructor(
         }
     }
 
-    override suspend fun syncVisits(): Result<List<Visit>> {
-        return try {
-            Log.d(TAG, "Manual sync requested by user")
-            syncManager.syncNow()
-
-            val medicalId = getCurrentMedicalPersonId()
-            if (!medicalId.isNullOrEmpty()) {
-                val localVisits = visitDao.getVisitsForStaffSync(medicalId)
-                Result.success(localVisits.map { convertEntityToDomain(it) })
-            } else {
-                Log.w(TAG, "Cannot fetch visits for sync: medicalPersonId is null")
-                Result.success(emptyList())
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Manual sync trigger failed: ${e.message}")
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun cacheVisits(visits: List<Visit>) {
-        val entities = visits.map { visit ->
-            convertDomainToEntity(visit, isSynced = true)
-        }
-        visitDao.insertVisits(entities)
-        Log.d(TAG, "💾 Cached ${entities.size} visits")
-    }
-
     override suspend fun getCachedVisits(): List<Visit> {
         val medicalId = getCurrentMedicalPersonId()
         if (!medicalId.isNullOrEmpty()) {
             val entities = visitDao.getVisitsForStaffSync(medicalId)
             return entities.map { convertEntityToDomain(it) }
         }
-        return emptyList()
-    }
-
-    override suspend fun getVisitsForToday(): List<Visit> {
-        return getVisitsForDate(Date())
-    }
-
-    override suspend fun updateScheduledTime(visitId: String, scheduledTime: Date) {
-        Log.w(TAG, "updateScheduledTime not implemented yet")
-    }
-
-    override suspend fun updateVisit(visit: Visit): Visit {
-        Log.w(TAG, "updateVisit not implemented yet")
-        return visit
-    }
-
-    override suspend fun addUnplannedVisit(visit: Visit): Visit {
-        Log.w(TAG, "addUnplannedVisit not implemented yet")
-        return visit
-    }
-
-    override suspend fun getVisitHistoryForPatient(patientId: String): List<Visit> {
-        Log.w(TAG, "getVisitHistoryForPatient not implemented yet")
         return emptyList()
     }
 
@@ -279,28 +222,6 @@ class SimpleOfflineVisitRepository @Inject constructor(
             updatedAt = entity.updatedAt,
             isFromRequest = entity.isFromRequest,
             originalRequestId = entity.originalRequestId
-        )
-    }
-
-    private fun convertDomainToEntity(visit: Visit, isSynced: Boolean): VisitEntity {
-        return VisitEntity(
-            id = visit.id,
-            patientId = visit.patientId,
-            scheduledTime = visit.scheduledTime,
-            status = visit.status.name,
-            address = visit.address,
-            reasonForVisit = visit.reasonForVisit,
-            notes = visit.notes,
-            assignedStaffId = visit.assignedStaffId,
-            assignedStaffName = visit.assignedStaffName,
-            actualStartTime = visit.actualStartTime,
-            actualEndTime = visit.actualEndTime,
-            createdAt = visit.createdAt,
-            updatedAt = visit.updatedAt,
-            isFromRequest = visit.isFromRequest,
-            originalRequestId = visit.originalRequestId,
-            isSynced = isSynced,
-            syncAction = null
         )
     }
 }

@@ -14,26 +14,11 @@ interface PatientDao {
     @Query("SELECT * FROM patients WHERE id = :patientId LIMIT 1")
     fun observePatient(patientId: String): Flow<PatientEntity?>
 
-    @Query("SELECT * FROM patients ORDER BY fullName ASC")
-    fun getAllPatients(): Flow<List<PatientEntity>>
-
-    @Query("SELECT * FROM patients ORDER BY fullName ASC")
-    suspend fun getAllPatientsSync(): List<PatientEntity>
-
-    @Query("SELECT * FROM patients WHERE fullName LIKE '%' || :query || '%' ORDER BY fullName ASC")
-    fun searchPatients(query: String): Flow<List<PatientEntity>>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPatient(patient: PatientEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPatients(patients: List<PatientEntity>)
-
-    @Update
-    suspend fun updatePatient(patient: PatientEntity)
-
-    @Delete
-    suspend fun deletePatient(patient: PatientEntity)
 
     @Query("SELECT * FROM patients WHERE isSynced = 0 ORDER BY updatedAt ASC")
     suspend fun getUnsyncedPatients(): List<PatientEntity>
@@ -86,13 +71,4 @@ interface PatientDao {
         chronicConditions: List<String>?,
         now: Date
     )
-
-    @Query("DELETE FROM patients")
-    suspend fun deleteAllPatients()
-
-    @Query("SELECT COUNT(*) FROM patients WHERE isSynced = 0")
-    suspend fun getUnsyncedCount(): Int
-
-    @Query("SELECT COUNT(*) FROM patients")
-    suspend fun getTotalPatientsCount(): Int
 }

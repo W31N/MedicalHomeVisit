@@ -84,7 +84,6 @@ object AppModule {
         )
     }
 
-
     @Provides
     @Singleton
     fun provideTokenManager(@ApplicationContext context: Context): TokenManager {
@@ -178,24 +177,19 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAppointmentRequestRepository(
-        appointmentApiService: AppointmentApiService,
-        tokenManager: TokenManager,
-        authRepository: AuthRepository
+        appointmentApiService: AppointmentApiService
     ): AppointmentRequestRepository {
         return AppointmentRequestRepositoryImpl(
-            appointmentApiService,
-            tokenManager,
-            authRepository
+            appointmentApiService
         )
     }
 
     @Provides
     @Singleton
     fun provideAdminRepository(
-        adminApiService: AdminApiService,
-        tokenManager: TokenManager
+        adminApiService: AdminApiService
     ): AdminRepository {
-        return AdminRepositoryImpl(adminApiService, tokenManager)
+        return AdminRepositoryImpl(adminApiService)
     }
 
     @Provides
@@ -227,10 +221,9 @@ object AppModule {
     @Singleton
     @OnlinePatientRepository
     fun provideOnlinePatientRepository(
-        patientApiService: PatientApiService,
-        authRepository: AuthRepository
+        patientApiService: PatientApiService
     ): PatientRepository {
-        return PatientRepositoryImpl(patientApiService, authRepository)
+        return PatientRepositoryImpl(patientApiService)
     }
 
     @Provides
@@ -241,10 +234,9 @@ object AppModule {
     @OfflinePatientRepository
     fun provideOfflinePatientRepository(
         patientDao: PatientDao,
-        patientApiService: PatientApiService,
-        authRepository: AuthRepository
+        patientApiService: PatientApiService
     ): PatientRepository {
-        return SimpleOfflinePatientRepository(patientDao, patientApiService, authRepository)
+        return SimpleOfflinePatientRepository(patientDao, patientApiService)
     }
 
     @Provides
@@ -253,14 +245,12 @@ object AppModule {
         protocolApiService: ProtocolApiService,
         visitProtocolDao: VisitProtocolDao,
         protocolTemplateDao: ProtocolTemplateDao,
-        authRepository: AuthRepository,
         syncManager: SyncManager
     ): ProtocolRepository {
         return SimpleOfflineProtocolRepository(
             protocolApiService,
             visitProtocolDao,
             protocolTemplateDao,
-            authRepository,
             syncManager
         )
     }

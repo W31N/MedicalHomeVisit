@@ -8,9 +8,7 @@ import com.example.medicalhomevisit.domain.model.RequestStatus
 import com.example.medicalhomevisit.domain.model.RequestType
 import com.example.medicalhomevisit.domain.repository.AppointmentRequestRepository
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.util.Date
 import javax.inject.Inject
@@ -100,23 +98,6 @@ class   AppointmentRequestRepositoryImpl @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Exception in getMyRequests", e)
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun getRequestsForPatient(patientId: String): Result<List<AppointmentRequest>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getRequestsForPatient(patientId)
-                if (response.isSuccessful && response.body() != null) {
-                    val requests = response.body()!!.map { convertDtoToModel(it) }
-                    Result.success(requests)
-                } else {
-                    Result.failure(Exception("Ошибка загрузки заявок пациента"))
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error getting patient requests", e)
                 Result.failure(e)
             }
         }
@@ -216,15 +197,6 @@ class   AppointmentRequestRepositoryImpl @Inject constructor(
                 Result.failure(e)
             }
         }
-    }
-
-    override suspend fun getMyAssignedRequests(): Result<List<AppointmentRequest>> {
-        // TODO: Реализовать, когда будет готов endpoint на бэкенде
-        return Result.failure(NotImplementedError("Метод еще не реализован на бэкенде"))
-    }
-
-    override fun observeMyRequests(): Flow<List<AppointmentRequest>> {
-        return _myRequestsFlow.asStateFlow()
     }
 
     private fun convertDtoToModel(dto: AppointmentRequestDto): AppointmentRequest {

@@ -9,5 +9,4 @@ interface AuthRepository {
     suspend fun signUp(fullName: String, email: String, password: String, confirmPassword: String): Result<User>
     suspend fun signOut()
     fun isLoggedIn(): Boolean
-    suspend fun fetchAndUpdateCurrentUser(): User?
 }

@@ -18,16 +18,7 @@ interface VisitDao {
     suspend fun getVisitById(visitId: String): VisitEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertVisit(visit: VisitEntity)
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertVisits(visits: List<VisitEntity>)
-
-    @Update
-    suspend fun updateVisit(visit: VisitEntity)
-
-    @Delete
-    suspend fun deleteVisit(visit: VisitEntity)
 
     @Query("SELECT * FROM visits WHERE isSynced = 0 ORDER BY updatedAt ASC")
     suspend fun getUnsyncedVisits(): List<VisitEntity>
@@ -54,12 +45,6 @@ interface VisitDao {
     @Query("UPDATE visits SET notes = :notes, isSynced = 0, syncAction = 'UPDATE', updatedAt = :now WHERE id = :visitId")
     suspend fun updateVisitNotesInternal(visitId: String, notes: String, now: Date)
 
-    @Query("DELETE FROM visits WHERE assignedStaffId = :staffId")
-    suspend fun deleteVisitsForStaff(staffId: String)
-
     @Query("SELECT COUNT(*) FROM visits WHERE isSynced = 0")
     suspend fun getUnsyncedCount(): Int
-
-    @Query("SELECT COUNT(*) FROM visits")
-    suspend fun getTotalVisitsCount(): Int
 }

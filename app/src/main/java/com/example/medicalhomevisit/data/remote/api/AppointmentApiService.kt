@@ -22,9 +22,6 @@ interface AppointmentApiService {
     @GET("api/appointment-requests/{requestId}")
     suspend fun getRequestById(@Path("requestId") requestId: String): Response<AppointmentRequestDto>
 
-    @GET("api/appointment-requests/patient/{patientId}")
-    suspend fun getRequestsForPatient(@Path("patientId") patientId: String): Response<List<AppointmentRequestDto>>
-
     @GET("api/appointment-requests/active")
     suspend fun getAllActiveRequests(): Response<List<AppointmentRequestDto>>
 

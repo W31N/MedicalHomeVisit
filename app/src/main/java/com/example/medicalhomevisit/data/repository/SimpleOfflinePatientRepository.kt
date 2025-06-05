@@ -72,45 +72,6 @@ class SimpleOfflinePatientRepository @Inject constructor(
         }
     }
 
-    override suspend fun searchPatients(query: String): List<Patient> {
-        Log.d(TAG, "🔍 Searching patients with query: '$query'")
-
-        if (query.isBlank()) return emptyList()
-
-        val localResults = patientDao.searchPatients(query).map { entities ->
-            entities.map { it.toDomainModel() }
-        }
-
-        trySearchPatientsOnServer(query)
-
-        return try {
-            localResults.first()
-        } catch (e: Exception) {
-            Log.w(TAG, "Error getting local search results: ${e.message}")
-            emptyList()
-        }
-    }
-
-    override suspend fun getAllPatients(): List<Patient> {
-        Log.d(TAG, "📋 Getting all patients")
-
-        val localPatients = patientDao.getAllPatientsSync().map { it.toDomainModel() }
-
-        tryRefreshAllPatientsFromServer()
-
-        return localPatients
-    }
-
-    override fun observePatients(): Flow<List<Patient>> {
-        Log.d(TAG, "👁️ Observing all patients")
-
-        tryRefreshAllPatientsFromServer()
-
-        return patientDao.getAllPatients().map { entities ->
-            entities.map { it.toDomainModel() }
-        }
-    }
-
     override suspend fun getMyProfile(): Patient {
         Log.d(TAG, "👤 Getting my patient profile")
 
@@ -162,37 +123,13 @@ class SimpleOfflinePatientRepository @Inject constructor(
                 throw Exception("Ошибка обновления профиля: ${response.code()}")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error updating my profile: ${e.message}", e)
+            Log.e(TAG, "Error updating my profile: ${e.message}", e)
             throw e
         }
     }
 
-    override suspend fun cachePatients(patients: List<Patient>) {
-        val entities = patients.map { it.toEntity(isSynced = true) }
-        patientDao.insertPatients(entities)
-        Log.d(TAG, "💾 Cached ${entities.size} patients")
-    }
-
-    override suspend fun getCachedPatients(): List<Patient> {
-        return patientDao.getAllPatientsSync().map { it.toDomainModel() }
-    }
-
     override suspend fun getCachedPatientById(patientId: String): Patient? {
         return patientDao.getPatientById(patientId)?.toDomainModel()
-    }
-
-    override suspend fun syncPatients(): Result<List<Patient>> {
-        return try {
-            Log.d(TAG, "🔄 Manual patient sync requested")
-
-            tryRefreshAllPatientsFromServer()
-
-            val patients = getCachedPatients()
-            Result.success(patients)
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Patient sync failed: ${e.message}", e)
-            Result.failure(e)
-        }
     }
 
     private fun tryRefreshPatientFromServer(patientId: String) {

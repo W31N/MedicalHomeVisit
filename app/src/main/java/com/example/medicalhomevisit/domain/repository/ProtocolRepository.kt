@@ -17,9 +17,6 @@ interface ProtocolRepository {
         diastolicBP: Int? = null,
         pulse: Int? = null
     ): VisitProtocol
-    suspend fun deleteProtocol(visitId: String)
     suspend fun syncProtocols(): Result<Unit>
-    suspend fun cacheProtocols(protocols: List<VisitProtocol>)
-    suspend fun getCachedProtocols(): List<VisitProtocol>
     suspend fun getCachedProtocolForVisit(visitId: String): VisitProtocol?
 }

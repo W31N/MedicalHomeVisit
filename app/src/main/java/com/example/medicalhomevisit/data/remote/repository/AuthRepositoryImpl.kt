@@ -95,15 +95,6 @@ class AuthRepositoryImpl(
     override fun isLoggedIn(): Boolean {
         return tokenManager.getToken() != null
     }
-
-    override suspend fun fetchAndUpdateCurrentUser(): User? {
-        if (!isLoggedIn()) {
-            _currentUserFlow.value = null
-            return null
-        }
-        Log.w("BackendAuthRepo", "fetchAndUpdateCurrentUser: Not implemented yet. Returning current flow value.")
-        return _currentUserFlow.value
-    }
 }
 
 fun UserDto.toDomainUser(): User {

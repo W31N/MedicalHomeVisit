@@ -5,7 +5,6 @@ import com.example.medicalhomevisit.data.remote.api.VisitApiService
 import com.example.medicalhomevisit.domain.model.Visit
 import com.example.medicalhomevisit.domain.model.VisitStatus
 import com.example.medicalhomevisit.data.remote.dto.VisitDto
-import com.example.medicalhomevisit.data.remote.dto.VisitNotesUpdateRequest
 import com.example.medicalhomevisit.data.remote.dto.VisitStatusUpdateRequest
 import com.example.medicalhomevisit.domain.repository.VisitRepository
 import kotlinx.coroutines.flow.Flow
@@ -49,27 +48,6 @@ class VisitRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading visits for staff", e)
-            throw e
-        }
-    }
-
-    override suspend fun getVisitsForToday(): List<Visit> {
-        return try {
-            Log.d(TAG, "Getting today's visits")
-            val response = apiService.getMyVisitsForToday()
-
-            if (response.isSuccessful) {
-                val visitDtos = response.body() ?: emptyList()
-                val visits = visitDtos.map { convertDtoToVisit(it) }
-
-                Log.d(TAG, "Successfully loaded ${visits.size} visits for today")
-                visits
-            } else {
-                Log.e(TAG, "Failed to load today's visits: ${response.code()} ${response.message()}")
-                throw Exception("Ошибка загрузки визитов на сегодня: ${response.code()}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading today's visits", e)
             throw e
         }
     }
@@ -140,93 +118,12 @@ class VisitRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateVisitNotes(visitId: String, notes: String) {
-        try {
-            Log.d(TAG, "Updating visit notes: $visitId")
-            val request = VisitNotesUpdateRequest(notes)
-            val response = apiService.updateVisitNotes(visitId, request)
-
-            if (response.isSuccessful) {
-                Log.d(TAG, "Successfully updated visit notes")
-
-                updateVisitInCache(visitId) { visit ->
-                    visit.copy(notes = notes)
-                }
-            } else {
-                Log.e(TAG, "Failed to update visit notes: ${response.code()} ${response.message()}")
-                throw Exception("Ошибка обновления заметок визита: ${response.code()}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating visit notes", e)
-            throw e
-        }
-    }
-
-    override suspend fun updateScheduledTime(visitId: String, scheduledTime: Date) {
-        try {
-            Log.d(TAG, "Updating visit scheduled time: $visitId")
-
-            updateVisitInCache(visitId) { visit ->
-                visit.copy(scheduledTime = scheduledTime)
-            }
-
-            Log.d(TAG, "Successfully updated visit scheduled time")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating visit scheduled time", e)
-            throw e
-        }
-    }
-
-    override suspend fun updateVisit(visit: Visit): Visit {
-        try {
-            Log.d(TAG, "Updating visit: ${visit.id}")
-
-            updateVisitStatus(visit.id, visit.status)
-            if (visit.notes.isNotEmpty()) {
-                updateVisitNotes(visit.id, visit.notes)
-            }
-
-            Log.d(TAG, "Successfully updated visit")
-            return visit
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating visit", e)
-            throw e
-        }
-    }
-
-    override suspend fun addUnplannedVisit(visit: Visit): Visit {
-        Log.w(TAG, "addUnplannedVisit not implemented yet")
-        throw UnsupportedOperationException("Добавление внеплановых визитов пока не поддерживается")
-    }
-
-    override suspend fun getVisitHistoryForPatient(patientId: String): List<Visit> {
-        Log.w(TAG, "getVisitHistoryForPatient not implemented yet")
-        return emptyList()
-    }
-
     override fun observeVisits(): Flow<List<Visit>> {
         return _visitsFlow.asStateFlow()
     }
 
-    override suspend fun cacheVisits(visits: List<Visit>) {
-        _cachedVisits.value = visits
-        Log.d(TAG, "Cached ${visits.size} visits")
-    }
-
     override suspend fun getCachedVisits(): List<Visit> {
         return _cachedVisits.value
-    }
-
-    override suspend fun syncVisits(): Result<List<Visit>> {
-        return try {
-            val visits = getVisitsForToday()
-            _cachedVisits.value = visits
-            _visitsFlow.value = visits
-            Result.success(visits)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error syncing visits", e)
-            Result.failure(e)
-        }
     }
 
     private fun updateVisitInCache(visitId: String, updateFn: (Visit) -> Visit) {
