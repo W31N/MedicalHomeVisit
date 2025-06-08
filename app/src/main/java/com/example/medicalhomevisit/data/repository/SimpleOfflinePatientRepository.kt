@@ -11,7 +11,6 @@ import com.example.medicalhomevisit.domain.model.Patient
 import com.example.medicalhomevisit.domain.model.PatientProfileUpdate
 import com.example.medicalhomevisit.domain.repository.PatientRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.Date
@@ -29,17 +28,17 @@ class SimpleOfflinePatientRepository @Inject constructor(
     }
 
     override suspend fun getPatientById(patientId: String): Patient {
-        Log.d(TAG, "🔍 Getting patient by ID: $patientId")
+        Log.d(TAG, "Getting patient by ID: $patientId")
 
         val localPatient = patientDao.getPatientById(patientId)?.toDomainModel()
 
         if (localPatient != null) {
-            Log.d(TAG, "✅ Patient found in local database: ${localPatient.fullName}")
+            Log.d(TAG, "Patient found in local database: ${localPatient.fullName}")
             tryRefreshPatientFromServer(patientId)
             return localPatient
         }
 
-        Log.d(TAG, "📱 Patient not found locally, trying to load from server...")
+        Log.d(TAG, "Patient not found locally, trying to load from server...")
 
         try {
             val response = patientApiService.getPatientById(patientId)
@@ -50,20 +49,20 @@ class SimpleOfflinePatientRepository @Inject constructor(
                 val entity = dto.toEntity(isSynced = true)
                 patientDao.insertPatient(entity)
 
-                Log.d(TAG, "✅ Patient loaded from server and cached: ${patient.fullName}")
+                Log.d(TAG, "Patient loaded from server and cached: ${patient.fullName}")
                 return patient
             } else {
-                Log.e(TAG, "❌ Server error: ${response.code()} ${response.message()}")
+                Log.e(TAG, "Server error: ${response.code()} ${response.message()}")
                 throw Exception("Ошибка загрузки пациента с сервера: ${response.code()}")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Network error loading patient: ${e.message}", e)
+            Log.e(TAG, "Network error loading patient: ${e.message}", e)
             throw Exception("Пациент с ID $patientId не найден")
         }
     }
 
     override fun observePatient(patientId: String): Flow<Patient> {
-        Log.d(TAG, "👁️ Observing patient: $patientId")
+        Log.d(TAG, "Observing patient: $patientId")
 
         tryRefreshPatientFromServer(patientId)
 
@@ -73,7 +72,7 @@ class SimpleOfflinePatientRepository @Inject constructor(
     }
 
     override suspend fun getMyProfile(): Patient {
-        Log.d(TAG, "👤 Getting my patient profile")
+        Log.d(TAG, "Getting my patient profile")
 
         try {
             val response = patientApiService.getMyProfile()
@@ -84,19 +83,19 @@ class SimpleOfflinePatientRepository @Inject constructor(
                 val entity = patient.toEntity(isSynced = true)
                 patientDao.insertPatient(entity)
 
-                Log.d(TAG, "✅ My profile loaded from server")
+                Log.d(TAG, "My profile loaded from server")
                 return patient
             } else {
                 throw Exception("Ошибка загрузки профиля: ${response.code()}")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error loading my profile from server: ${e.message}", e)
+            Log.e(TAG, "Error loading my profile from server: ${e.message}", e)
             throw e
         }
     }
 
     override suspend fun updateMyProfile(profileUpdate: PatientProfileUpdate): Patient {
-        Log.d(TAG, "✏️ Updating my patient profile")
+        Log.d(TAG, "Updating my patient profile")
 
         try {
             val dto = PatientProfileUpdateDto(
@@ -117,7 +116,7 @@ class SimpleOfflinePatientRepository @Inject constructor(
                 val entity = updatedPatient.toEntity(isSynced = true)
                 patientDao.insertPatient(entity)
 
-                Log.d(TAG, "✅ My profile updated successfully")
+                Log.d(TAG, "My profile updated successfully")
                 return updatedPatient
             } else {
                 throw Exception("Ошибка обновления профиля: ${response.code()}")
@@ -135,53 +134,17 @@ class SimpleOfflinePatientRepository @Inject constructor(
     private fun tryRefreshPatientFromServer(patientId: String) {
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             try {
-                Log.d(TAG, "📡 Refreshing patient $patientId from server")
+                Log.d(TAG, "Refreshing patient $patientId from server")
                 val response = patientApiService.getPatientById(patientId)
 
                 if (response.isSuccessful && response.body() != null) {
                     val dto = response.body()!!
                     val entity = dto.toEntity(isSynced = true)
                     patientDao.insertPatient(entity)
-                    Log.d(TAG, "✅ Patient $patientId refreshed from server")
+                    Log.d(TAG, "Patient $patientId refreshed from server")
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "❌ Failed to refresh patient $patientId: ${e.message}")
-            }
-        }
-    }
-
-    private fun trySearchPatientsOnServer(query: String) {
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            try {
-                Log.d(TAG, "📡 Searching patients on server: '$query'")
-                val response = patientApiService.searchPatients(query)
-
-                if (response.isSuccessful && response.body() != null) {
-                    val dtos = response.body()!!
-                    val entities = dtos.map { it.toEntity(isSynced = true) }
-                    patientDao.insertPatients(entities)
-                    Log.d(TAG, "✅ Found ${entities.size} patients on server")
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "❌ Failed to search patients on server: ${e.message}")
-            }
-        }
-    }
-
-    private fun tryRefreshAllPatientsFromServer() {
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            try {
-                Log.d(TAG, "📡 Refreshing all patients from server")
-                val response = patientApiService.getAllPatients()
-
-                if (response.isSuccessful && response.body() != null) {
-                    val dtos = response.body()!!
-                    val entities = dtos.map { it.toEntity(isSynced = true) }
-                    patientDao.insertPatients(entities)
-                    Log.d(TAG, "✅ Refreshed ${entities.size} patients from server")
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "❌ Failed to refresh all patients: ${e.message}")
+                Log.w(TAG, "Failed to refresh patient $patientId: ${e.message}")
             }
         }
     }

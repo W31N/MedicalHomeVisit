@@ -121,7 +121,7 @@ fun AppNavigation() {
                                 Log.d("AppNavigation", "Routing to PatientNavGraph")
                                 PatientNavGraph.route
                             }
-                            UserRole.ADMIN, UserRole.DISPATCHER -> {
+                            UserRole.ADMIN -> {
                                 Log.d("AppNavigation", "Routing to AdminNavGraph for role: ${currentState.user.role}")
                                 AdminNavGraph.route
                             }
@@ -139,7 +139,7 @@ fun AppNavigation() {
                         Log.d("AppNavigation", "Registration successful for role: ${currentState.user.role}")
                         when (currentState.user.role) {
                             UserRole.PATIENT -> PatientNavGraph.route
-                            UserRole.ADMIN, UserRole.DISPATCHER -> AdminNavGraph.route
+                            UserRole.ADMIN -> AdminNavGraph.route
                             UserRole.MEDICAL_STAFF -> Screen.VisitList.route
                         }
                     }
@@ -180,7 +180,7 @@ fun AppNavigation() {
                                 Log.d("AppNavigation", "Navigating to PatientNavGraph after login")
                                 PatientNavGraph.route
                             }
-                            UserRole.ADMIN, UserRole.DISPATCHER -> {
+                            UserRole.ADMIN -> {
                                 Log.d("AppNavigation", "Navigating to AdminNavGraph after login")
                                 AdminNavGraph.route
                             }
@@ -227,14 +227,21 @@ fun AppNavigation() {
 
         composable(Screen.VisitList.route) {
             ImprovedAuthProtectedScreen(
-                requiredRoles = listOf(UserRole.MEDICAL_STAFF, UserRole.DISPATCHER),
+                requiredRoles = listOf(UserRole.MEDICAL_STAFF),
                 authState = authState,
                 navController = navController
             ) {
                 val viewModel: VisitListViewModel = hiltViewModel()
                 VisitListScreen(
                     viewModel = viewModel,
-                    onVisitClick = { navController.navigate(Screen.VisitDetail.createRoute(it.id)) },
+                    onVisitClick = { visit ->
+                        // Исправление: безопасная проверка на null
+                        visit.id?.let { visitId ->
+                            navController.navigate(Screen.VisitDetail.createRoute(visitId))
+                        } ?: run {
+                            Log.e("AppNavigation", "Cannot navigate to visit detail: visit.id is null")
+                        }
+                    },
                     onProfileClick = { navController.navigate(Screen.Profile.route) }
                 )
             }
@@ -245,7 +252,7 @@ fun AppNavigation() {
             arguments = listOf(navArgument(Screen.VisitDetail.ARG_VISIT_ID) { type = NavType.StringType })
         ) {
             ImprovedAuthProtectedScreen(
-                requiredRoles = listOf(UserRole.MEDICAL_STAFF, UserRole.DISPATCHER),
+                requiredRoles = listOf(UserRole.MEDICAL_STAFF),
                 authState = authState,
                 navController = navController
             ) {
@@ -263,7 +270,7 @@ fun AppNavigation() {
             arguments = listOf(navArgument(Screen.Protocol.ARG_VISIT_ID) { type = NavType.StringType })
         ) {
             ImprovedAuthProtectedScreen(
-                requiredRoles = listOf(UserRole.MEDICAL_STAFF, UserRole.DISPATCHER),
+                requiredRoles = listOf(UserRole.MEDICAL_STAFF),
                 authState = authState,
                 navController = navController
             ) {
@@ -558,7 +565,7 @@ fun ImprovedAuthProtectedScreen(
                         Log.d("AppNavigation", "Access denied, redirecting to home screen for role: ${user.role}")
                         val destination = when (user.role) {
                             UserRole.PATIENT -> PatientNavGraph.route
-                            UserRole.ADMIN, UserRole.DISPATCHER -> AdminNavGraph.route
+                            UserRole.ADMIN -> AdminNavGraph.route
                             UserRole.MEDICAL_STAFF -> Screen.VisitList.route
                         }
                         Log.d("AppNavigation", "Redirecting to: $destination")

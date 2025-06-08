@@ -12,6 +12,5 @@ data class User(
 enum class UserRole {
     ADMIN,
     MEDICAL_STAFF,
-    DISPATCHER,
     PATIENT
 }

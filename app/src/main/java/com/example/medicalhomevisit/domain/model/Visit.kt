@@ -3,7 +3,7 @@ package com.example.medicalhomevisit.domain.model
 import java.util.Date
 
 data class Visit(
-    val id: String = "",
+    val id: String? = null,
     val patientId: String,
     val scheduledTime: Date,
     val status: VisitStatus,

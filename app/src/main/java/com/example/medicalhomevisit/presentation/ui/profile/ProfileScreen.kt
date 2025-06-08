@@ -112,7 +112,6 @@ fun ProfileScreen(
                                 text = when (user.role) {
                                     UserRole.ADMIN -> "Администратор"
                                     UserRole.MEDICAL_STAFF -> "Медицинский работник"
-                                    UserRole.DISPATCHER -> "Диспетчер"
                                     UserRole.PATIENT -> "Пациент"
                                 },
                                 style = MaterialTheme.typography.bodyLarge

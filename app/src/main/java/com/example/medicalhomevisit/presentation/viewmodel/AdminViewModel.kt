@@ -40,8 +40,8 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.currentUser.collect { userValue ->
                 _user.value = userValue
-                if (userValue != null && (userValue.role == UserRole.ADMIN || userValue.role == UserRole.DISPATCHER) ) {
-                    Log.d(TAG, "Admin/Dispatcher logged in. Loading initial data.")
+                if (userValue != null && (userValue.role == UserRole.ADMIN) ) {
+                    Log.d(TAG, "Admin logged in. Loading initial data.")
                     refreshData()
                 } else if (userValue == null) {
                     _uiState.value =
@@ -105,10 +105,10 @@ class AdminViewModel @Inject constructor(
     fun assignRequestToStaff(requestId: String, staffId: String, assignmentNote: String?) {
         Log.d(TAG, "Attempting to assign request $requestId to staff $staffId with note: $assignmentNote")
         val adminUser = _user.value
-        if (adminUser == null || (adminUser.role != UserRole.ADMIN && adminUser.role != UserRole.DISPATCHER)) {
+        if (adminUser == null || (adminUser.role != UserRole.ADMIN)) {
             _uiState.value =
                 AdminUiState.Error("Только администратор или диспетчер могут назначать заявки.")
-            Log.w(TAG, "User ${adminUser?.email} without ADMIN/DISPATCHER role tried to assign request.")
+            Log.w(TAG, "User ${adminUser?.email} without ADMIN role tried to assign request.")
             return
         }
 
@@ -215,8 +215,6 @@ class AdminViewModel @Inject constructor(
         private const val TAG = "AdminViewModel"
     }
 }
-
-
 
 sealed class AdminUiState {
     object Initial : AdminUiState()
