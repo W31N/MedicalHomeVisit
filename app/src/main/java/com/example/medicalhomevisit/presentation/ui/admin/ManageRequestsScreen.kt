@@ -30,6 +30,10 @@ fun ManageRequestsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val activeRequests by viewModel.activeRequests.collectAsState()
 
+    LaunchedEffect(key1 = true) {
+        viewModel.refreshData()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -95,45 +99,16 @@ fun ManageRequestsScreen(
                     }
                 }
                 is AdminUiState.Success, is AdminUiState.RequestAssigned -> {
-                    if (activeRequests.isNotEmpty()) {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
-                            contentPadding = PaddingValues(vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(activeRequests) { request ->
-                                AdminRequestCard(
-                                    request = request,
-                                    onClick = { onAssignRequest(request) }
-                                )
-                            }
-                        }
-                    } else {
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "Нет заявок для отображения",
-                                style = MaterialTheme.typography.titleMedium,
-                                textAlign = TextAlign.Center
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        contentPadding = PaddingValues(vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(activeRequests) { request ->
+                            AdminRequestCard(
+                                request = request,
+                                onClick = { onAssignRequest(request) }
                             )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Button(onClick = { viewModel.refreshData() }) {
-                                Icon(
-                                    Icons.Default.Refresh,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Обновить")
-                            }
                         }
                     }
                 }

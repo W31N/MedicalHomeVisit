@@ -74,7 +74,7 @@ class VisitListViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 visitRepository.observeVisits().collectLatest { allVisits ->
-                    Log.d(TAG, "📱 Received ${allVisits.size} visits from Room")
+                    Log.d(TAG, "Received ${allVisits.size} visits from Room")
                     _allVisits.value = allVisits
                     applyFilters()
 
@@ -120,7 +120,7 @@ class VisitListViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val patientIds = visits.map { it.patientId }.distinct()
-                Log.d(TAG, "🔄 Preloading ${patientIds.size} patients...")
+                Log.d(TAG, "Preloading ${patientIds.size} patients...")
                 patientIds.forEach { patientId ->
                     launch(kotlinx.coroutines.Dispatchers.IO) {
                         try {
@@ -144,7 +144,7 @@ class VisitListViewModel @Inject constructor(
             hasTriedInitialLoad = true
             try {
                 val visits = visitRepository.getVisitsForStaff(userId)
-                Log.d(TAG, "📱 Initial load: ${visits.size} visits")
+                Log.d(TAG, "Initial load: ${visits.size} visits")
                 _allVisits.value = visits
                 applyFilters()
                 _isOffline.value = false
@@ -154,7 +154,7 @@ class VisitListViewModel @Inject constructor(
                 _isOffline.value = true
                 try {
                     val localTemplates = protocolTemplateRepository.getAllTemplates()
-                    Log.d(TAG, "📱 Found ${localTemplates.size} local protocol templates")
+                    Log.d(TAG, "Found ${localTemplates.size} local protocol templates")
                 } catch (templateEx: Exception) {
                     Log.w(TAG, "Could not load local templates: ${templateEx.message}")
                 }
@@ -170,7 +170,7 @@ class VisitListViewModel @Inject constructor(
     fun syncVisits() {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "🔄 Manual sync requested")
+                Log.d(TAG, "Manual sync requested")
                 _isOffline.value = false
                 syncManager.syncNow()
                 preloadProtocolTemplates()
@@ -230,7 +230,7 @@ class VisitListViewModel @Inject constructor(
             sameDay && statusMatches && searchMatches
         }
 
-        Log.d(TAG, "🔍 Filtered ${filteredVisits.size} visits from ${_allVisits.value.size} total")
+        Log.d(TAG, "Filtered ${filteredVisits.size} visits from ${_allVisits.value.size} total")
 
         _uiState.value = if (filteredVisits.isEmpty()) {
             if (_allVisits.value.isEmpty() && _isOffline.value) {
@@ -247,7 +247,7 @@ class VisitListViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 visitRepository.updateVisitStatus(visitId, newStatus)
-                Log.d(TAG, "✅ Visit status updated: $visitId -> $newStatus")
+                Log.d(TAG, "Visit status updated: $visitId -> $newStatus")
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating visit status: ${e.message}", e)
             }
@@ -260,7 +260,7 @@ class VisitListViewModel @Inject constructor(
                 val unsyncedCount = (visitRepository as? SimpleOfflineVisitRepository)?.getUnsyncedCount() ?: 0
 
                 if (unsyncedCount > 0 && !_isOffline.value) {
-                    Log.d(TAG, "📊 Found $unsyncedCount unsynced visits")
+                    Log.d(TAG, "Found $unsyncedCount unsynced visits")
                 }
 
             } catch (e: Exception) {
@@ -279,7 +279,7 @@ class VisitListViewModel @Inject constructor(
 
                     val templates = protocolTemplateRepository.getAllTemplates()
 
-                    Log.d(TAG, "📊 SYNC STATS:")
+                    Log.d(TAG, "SYNC STATS:")
                     Log.d(TAG, "   - Total visits: ${_allVisits.value.size}")
                     Log.d(TAG, "   - Unsynced count: $unsyncedCount")
                     Log.d(TAG, "   - Unsynced visits: ${unsyncedVisits.map { it.id }}")

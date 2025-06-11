@@ -197,5 +197,5 @@ sealed class AuthUiState {
     object NotLoggedIn : AuthUiState()
     data class Error(val message: String) : AuthUiState()
     object PasswordResetSent : AuthUiState()
-    data class RegistrationSuccessful(val user: User) : AuthUiState() // Новое состояние
+    data class RegistrationSuccessful(val user: User) : AuthUiState()
 }

@@ -32,7 +32,7 @@ class SimpleOfflineProtocolTemplateRepository @Inject constructor(
     }
 
     override suspend fun refreshTemplates(): Result<Unit> {
-        Log.d(TAG, "📡 Refreshing protocol templates from server...")
+        Log.d(TAG, "Refreshing protocol templates from server...")
         return try {
             val response = protocolApiService.getProtocolTemplates()
             if (response.isSuccessful && response.body() != null) {

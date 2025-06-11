@@ -30,7 +30,7 @@ class VisitSyncWorker @AssistedInject constructor(
 
         return try {
             val unsyncedVisits = visitDao.getUnsyncedVisits()
-            Log.d(TAG, "📝 Found ${unsyncedVisits.size} unsynced visits")
+            Log.d(TAG, "Found ${unsyncedVisits.size} unsynced visits")
 
             var successCount = 0
             var failCount = 0

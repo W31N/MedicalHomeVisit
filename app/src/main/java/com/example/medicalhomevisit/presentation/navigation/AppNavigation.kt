@@ -61,6 +61,10 @@ object AdminNavGraph {
     const val route = "admin_graph_route"
 }
 
+object MedicalStaffNavGraph {
+    const val route = "medical_staff_graph_route"
+}
+
 sealed class Screen(val route: String) {
     object PatientProfile : Screen("patientProfile")
     object SplashScreen : Screen("splash_screen")
@@ -101,6 +105,15 @@ fun AppNavigation() {
     val authViewModel: AuthViewModel = hiltViewModel()
     val authState by authViewModel.uiState.collectAsState()
 
+    LaunchedEffect(authState, navController) {
+        if (authState is AuthUiState.NotLoggedIn && navController.currentDestination?.route != Screen.Login.route) {
+            navController.navigate(Screen.Login.route) {
+                popUpTo(navController.graph.id) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = Screen.SplashScreen.route
@@ -127,7 +140,7 @@ fun AppNavigation() {
                             }
                             UserRole.MEDICAL_STAFF -> {
                                 Log.d("AppNavigation", "Routing to VisitList")
-                                Screen.VisitList.route
+                                MedicalStaffNavGraph.route
                             }
                         }
                     }
@@ -140,7 +153,7 @@ fun AppNavigation() {
                         when (currentState.user.role) {
                             UserRole.PATIENT -> PatientNavGraph.route
                             UserRole.ADMIN -> AdminNavGraph.route
-                            UserRole.MEDICAL_STAFF -> Screen.VisitList.route
+                            UserRole.MEDICAL_STAFF -> MedicalStaffNavGraph.route
                         }
                     }
                     AuthUiState.PasswordResetSent -> {
@@ -186,7 +199,7 @@ fun AppNavigation() {
                             }
                             UserRole.MEDICAL_STAFF -> {
                                 Log.d("AppNavigation", "Navigating to VisitList after login")
-                                Screen.VisitList.route
+                                MedicalStaffNavGraph.route
                             }
                         }
 
@@ -220,88 +233,8 @@ fun AppNavigation() {
         }
 
         patientGraph(navController)
-
-
-        Log.d("AppNavigation", "Setting up admin graph")
         adminGraph(navController)
-
-        composable(Screen.VisitList.route) {
-            ImprovedAuthProtectedScreen(
-                requiredRoles = listOf(UserRole.MEDICAL_STAFF),
-                authState = authState,
-                navController = navController
-            ) {
-                val viewModel: VisitListViewModel = hiltViewModel()
-                VisitListScreen(
-                    viewModel = viewModel,
-                    onVisitClick = { visit ->
-                        // Исправление: безопасная проверка на null
-                        visit.id?.let { visitId ->
-                            navController.navigate(Screen.VisitDetail.createRoute(visitId))
-                        } ?: run {
-                            Log.e("AppNavigation", "Cannot navigate to visit detail: visit.id is null")
-                        }
-                    },
-                    onProfileClick = { navController.navigate(Screen.Profile.route) }
-                )
-            }
-        }
-
-        composable(
-            route = Screen.VisitDetail.route,
-            arguments = listOf(navArgument(Screen.VisitDetail.ARG_VISIT_ID) { type = NavType.StringType })
-        ) {
-            ImprovedAuthProtectedScreen(
-                requiredRoles = listOf(UserRole.MEDICAL_STAFF),
-                authState = authState,
-                navController = navController
-            ) {
-                val viewModel: VisitDetailViewModel = hiltViewModel()
-                VisitDetailScreen(
-                    viewModel = viewModel,
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToProtocol = { navController.navigate(Screen.Protocol.createRoute(it)) }
-                )
-            }
-        }
-
-        composable(
-            route = Screen.Protocol.route,
-            arguments = listOf(navArgument(Screen.Protocol.ARG_VISIT_ID) { type = NavType.StringType })
-        ) {
-            ImprovedAuthProtectedScreen(
-                requiredRoles = listOf(UserRole.MEDICAL_STAFF),
-                authState = authState,
-                navController = navController
-            ) {
-                val viewModel: ProtocolViewModel = hiltViewModel()
-                ProtocolScreen(
-                    viewModel = viewModel,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-        }
-
-
-        composable(Screen.Profile.route) {
-            ImprovedAuthProtectedScreen(
-                requiredRoles = null,
-                authState = authState,
-                navController = navController
-            ) {
-                ProfileScreen(
-                    viewModel = authViewModel,
-                    navController = navController,
-                    onNavigateBack = { navController.popBackStack() },
-                    onSignOut = {
-                        navController.navigate(Screen.Login.route) {
-                            popUpTo(Screen.SplashScreen.route) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    }
-                )
-            }
-        }
+        medicalStaffGraph(navController)
     }
 }
 
@@ -370,11 +303,8 @@ fun NavGraphBuilder.adminGraph(
         ) { backStackEntry ->
             Log.d("AppNavigation", "AssignRequest composable entered")
 
-            val adminViewModel: AdminViewModel = hiltViewModel(
-                remember(backStackEntry) {
-                    navController.getBackStackEntry(AdminNavGraph.route)
-                }
-            )
+            val adminViewModel: AdminViewModel = hiltViewModel()
+
             val requestId = backStackEntry.arguments?.getString(Screen.AssignRequest.ARG_REQUEST_ID)
                 ?: throw IllegalArgumentException("Не указан ID заявки")
 
@@ -428,9 +358,107 @@ fun NavGraphBuilder.adminGraph(
                 }
             )
         }
+
+        composable(Screen.Profile.route) { navBackStackEntry ->
+            val authViewModel: AuthViewModel = hiltViewModel(
+                remember(navBackStackEntry) {
+                    navController.getBackStackEntry(AdminNavGraph.route)
+                }
+            )
+
+            ProfileScreen(
+                viewModel = authViewModel,
+                navController = null,
+                onNavigateBack = { navController.popBackStack() },
+                onSignOut = {
+                    authViewModel.signOut()
+                }
+            )
+        }
     }
 
     Log.d("AppNavigation", "Admin graph setup completed")
+}
+
+fun NavGraphBuilder.medicalStaffGraph(
+    navController: NavHostController
+) {
+    Log.d("AppNavigation", "Building medical staff navigation graph")
+
+    navigation(
+        startDestination = Screen.VisitList.route,
+        route = MedicalStaffNavGraph.route
+    ) {
+        composable(Screen.VisitList.route) { navBackStackEntry ->
+            Log.d("AppNavigation", "VisitList composable entered in medical staff graph")
+
+            val visitListViewModel: VisitListViewModel = hiltViewModel(
+                remember(navBackStackEntry) {
+                    navController.getBackStackEntry(MedicalStaffNavGraph.route)
+                }
+            )
+
+            VisitListScreen(
+                viewModel = visitListViewModel,
+                onVisitClick = { visit ->
+                    visit.id?.let { visitId ->
+                        navController.navigate(Screen.VisitDetail.createRoute(visitId))
+                    } ?: run {
+                        Log.e("MedicalStaffNavGraph", "Cannot navigate to visit detail: visit.id is null")
+                    }
+                },
+                onProfileClick = { navController.navigate(Screen.Profile.route) }
+            )
+        }
+
+        composable(
+            route = Screen.VisitDetail.route,
+            arguments = listOf(navArgument(Screen.VisitDetail.ARG_VISIT_ID) { type = NavType.StringType })
+        ) { navBackStackEntry ->
+            Log.d("AppNavigation", "VisitDetail composable entered in medical staff graph")
+
+            val visitDetailViewModel: VisitDetailViewModel = hiltViewModel()
+
+            VisitDetailScreen(
+                viewModel = visitDetailViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToProtocol = { navController.navigate(Screen.Protocol.createRoute(it)) }
+            )
+        }
+
+        composable(
+            route = Screen.Protocol.route,
+            arguments = listOf(navArgument(Screen.Protocol.ARG_VISIT_ID) { type = NavType.StringType })
+        ) { navBackStackEntry ->
+            Log.d("AppNavigation", "Protocol composable entered in medical staff graph")
+
+            val protocolViewModel: ProtocolViewModel = hiltViewModel()
+
+            ProtocolScreen(
+                viewModel = protocolViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Profile.route) { navBackStackEntry ->
+            val authViewModel: AuthViewModel = hiltViewModel(
+                remember(navBackStackEntry) {
+                    navController.getBackStackEntry(MedicalStaffNavGraph.route)
+                }
+            )
+
+            ProfileScreen(
+                viewModel = authViewModel,
+                navController = null,
+                onNavigateBack = { navController.popBackStack() },
+                onSignOut = {
+                    authViewModel.signOut()
+                }
+            )
+        }
+    }
+
+    Log.d("AppNavigation", "Medical staff graph setup completed")
 }
 
 fun NavGraphBuilder.patientGraph(
@@ -485,11 +513,8 @@ fun NavGraphBuilder.patientGraph(
             route = Screen.RequestDetails.route,
             arguments = listOf(navArgument(Screen.RequestDetails.ARG_REQUEST_ID) { type = NavType.StringType })
         ) { backStackEntry ->
-            val patientViewModel: PatientViewModel = hiltViewModel(
-                remember(backStackEntry) {
-                    navController.getBackStackEntry(PatientNavGraph.route)
-                }
-            )
+            val patientViewModel: PatientViewModel = hiltViewModel()
+
             val requestId = backStackEntry.arguments?.getString(Screen.RequestDetails.ARG_REQUEST_ID)
                 ?: throw IllegalArgumentException("Не указан ID заявки")
 
@@ -520,10 +545,24 @@ fun NavGraphBuilder.patientGraph(
                 }
             }
         }
+        composable(Screen.Profile.route) { navBackStackEntry ->
+            val authViewModel: AuthViewModel = hiltViewModel(
+                remember(navBackStackEntry) {
+                    navController.getBackStackEntry(PatientNavGraph.route)
+                }
+            )
+
+            ProfileScreen(
+                viewModel = authViewModel,
+                navController = navController,
+                onNavigateBack = { navController.popBackStack() },
+                onSignOut = {
+                    authViewModel.signOut()
+                }
+            )
+        }
     }
 }
-
-
 
 @Composable
 fun SplashScreen() {
@@ -566,7 +605,7 @@ fun ImprovedAuthProtectedScreen(
                         val destination = when (user.role) {
                             UserRole.PATIENT -> PatientNavGraph.route
                             UserRole.ADMIN -> AdminNavGraph.route
-                            UserRole.MEDICAL_STAFF -> Screen.VisitList.route
+                            UserRole.MEDICAL_STAFF -> MedicalStaffNavGraph.route
                         }
                         Log.d("AppNavigation", "Redirecting to: $destination")
                         navController.navigate(destination) {

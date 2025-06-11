@@ -2,6 +2,7 @@ package com.example.medicalhomevisit.presentation.ui.visitdetail
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -108,7 +109,11 @@ fun VisitDetailScreen(
                         },
                         onCreateProtocol = {
                             if (viewModel.canCreateProtocol()) {
-                                onNavigateToProtocol(visit.id)
+                                visit.id?.let { visitId ->
+                                    onNavigateToProtocol(visitId)
+                                } ?: run {
+                                    Log.e("VisitDetailScreen", "Cannot navigate to protocol: visit.id is null")
+                                }
                             }
                         }
                     )

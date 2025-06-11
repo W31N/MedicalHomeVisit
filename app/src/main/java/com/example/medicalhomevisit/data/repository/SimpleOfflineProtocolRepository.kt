@@ -39,7 +39,7 @@ class SimpleOfflineProtocolRepository @Inject constructor(
     }
 
     override suspend fun getProtocolForVisit(visitId: String): VisitProtocol? {
-        Log.d(TAG, "🔍 Getting protocol for visit: $visitId")
+        Log.d(TAG, "Getting protocol for visit: $visitId")
 
         val localProtocol = visitProtocolDao.getProtocolByVisitIdOnce(visitId)?.toDomainModel()
 
@@ -49,7 +49,7 @@ class SimpleOfflineProtocolRepository @Inject constructor(
     }
 
     override suspend fun saveProtocol(protocol: VisitProtocol): VisitProtocol {
-        Log.d(TAG, "💾 Saving protocol for visit ${protocol.visitId}")
+        Log.d(TAG, "Saving protocol for visit ${protocol.visitId}")
 
         val now = Date()
         val existingEntity = visitProtocolDao.getProtocolByVisitIdOnce(protocol.visitId)
@@ -69,7 +69,7 @@ class SimpleOfflineProtocolRepository @Inject constructor(
         )
 
         visitProtocolDao.insertProtocol(entityToSave)
-        Log.d(TAG, "✅ Protocol saved locally with action: ${entityToSave.syncAction}")
+        Log.d(TAG, "Protocol saved locally with action: ${entityToSave.syncAction}")
 
         syncManager.syncProtocolsNow()
 
@@ -77,7 +77,7 @@ class SimpleOfflineProtocolRepository @Inject constructor(
     }
 
     override suspend fun updateProtocolField(visitId: String, field: String, value: String): VisitProtocol {
-        Log.d(TAG, "📝 Updating field '$field' for visit $visitId")
+        Log.d(TAG, "Updating field '$field' for visit $visitId")
 
         var protocol = getProtocolForVisit(visitId)
         if (protocol == null) {
@@ -109,7 +109,7 @@ class SimpleOfflineProtocolRepository @Inject constructor(
         diastolicBP: Int?,
         pulse: Int?
     ): VisitProtocol {
-        Log.d(TAG, "🌡️ Updating vitals for visit $visitId")
+        Log.d(TAG, "Updating vitals for visit $visitId")
 
         var protocol = getProtocolForVisit(visitId)
         if (protocol == null) {
@@ -133,7 +133,7 @@ class SimpleOfflineProtocolRepository @Inject constructor(
     }
 
     override suspend fun applyTemplate(visitId: String, templateId: String): VisitProtocol {
-        Log.d(TAG, "🎨 Applying template $templateId to visit $visitId")
+        Log.d(TAG, "Applying template $templateId to visit $visitId")
 
         val apiResult = tryApplyTemplateOnServer(visitId, templateId)
         if (apiResult != null) {
@@ -166,7 +166,7 @@ class SimpleOfflineProtocolRepository @Inject constructor(
     }
 
     override suspend fun getProtocolTemplates(): List<ProtocolTemplate> {
-        Log.d(TAG, "📋 Getting protocol templates")
+        Log.d(TAG, "Getting protocol templates")
 
         var templates = protocolTemplateDao.getAllTemplates().firstOrNull()?.map { it.toDomainModel() } ?: emptyList()
 
@@ -183,7 +183,7 @@ class SimpleOfflineProtocolRepository @Inject constructor(
     }
 
     override suspend fun syncProtocols(): Result<Unit> {
-        Log.d(TAG, "🔄 Manual protocol sync requested")
+        Log.d(TAG, "Manual protocol sync requested")
         syncManager.syncProtocolsNow()
         return Result.success(Unit)
     }
@@ -194,14 +194,14 @@ class SimpleOfflineProtocolRepository @Inject constructor(
 
     private suspend fun tryRefreshProtocolFromServer(visitId: String) {
         try {
-            Log.d(TAG, "📡 Refreshing protocol for visit $visitId from server")
+            Log.d(TAG, "Refreshing protocol for visit $visitId from server")
             val response = protocolApiService.getProtocolForVisit(visitId)
 
             if (response.isSuccessful && response.body() != null) {
                 val dto = response.body()!!
                 val entity = dto.toEntity(isSynced = true)
                 visitProtocolDao.insertProtocol(entity)
-                Log.d(TAG, "✅ Protocol refreshed from server")
+                Log.d(TAG, "Protocol refreshed from server")
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to refresh protocol from server: ${e.message}")
@@ -239,7 +239,7 @@ class SimpleOfflineProtocolRepository @Inject constructor(
                 val dtos = response.body()!!
                 val entities = dtos.map { it.toEntity() }
                 protocolTemplateDao.insertTemplates(entities)
-                Log.d(TAG, "✅ ${entities.size} templates refreshed from server")
+                Log.d(TAG, "${entities.size} templates refreshed from server")
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to refresh templates: ${e.message}")

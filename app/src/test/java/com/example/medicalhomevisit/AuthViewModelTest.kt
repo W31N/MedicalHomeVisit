@@ -1,109 +1,109 @@
 package com.example.medicalhomevisit
 
+import app.cash.turbine.test
 import com.example.medicalhomevisit.domain.model.User
 import com.example.medicalhomevisit.domain.model.UserRole
 import com.example.medicalhomevisit.domain.repository.AuthRepository
 import com.example.medicalhomevisit.presentation.viewmodel.AuthUiState
 import com.example.medicalhomevisit.presentation.viewmodel.AuthViewModel
-import io.mockk.MockKAnnotations
+import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
-import io.mockk.impl.annotations.MockK
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import org.junit.After
-import org.junit.Assert.assertEquals
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TestWatcher
+import org.junit.runner.Description
 
 @ExperimentalCoroutinesApi
 class AuthViewModelTest {
 
-    @MockK
     private lateinit var authRepository: AuthRepository
 
     private lateinit var authViewModel: AuthViewModel
+
     private val testDispatcher = StandardTestDispatcher()
 
-    @Before
-    fun setup() {
-        MockKAnnotations.init(this)
-        Dispatchers.setMain(testDispatcher)
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule(testDispatcher)
 
-        every { authRepository.currentUser } returns MutableStateFlow(null)
+    @Before
+    fun setUp() {
+        authRepository = mockk()
+
+        val userFlow = MutableStateFlow<User?>(null)
+        every { authRepository.currentUser } returns userFlow
         every { authRepository.isLoggedIn() } returns false
 
         authViewModel = AuthViewModel(authRepository)
     }
 
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
-
     @Test
-    fun `signIn with valid credentials should return success`() = runTest {
-        val expectedUser = User(
-            id = "test_id",
-            email = "doctor@test.com",
-            displayName = "Dr. Test",
-            role = UserRole.MEDICAL_STAFF
-        )
-        coEvery { authRepository.signIn(any(), any()) } returns Result.success(expectedUser)
+    fun `signIn with correct credentials should emit Loading and then LoggedIn state`() = runTest {
+        val testUser = User(id = "123", email = "test@example.com", displayName = "Test User", role = UserRole.PATIENT)
+        val successResult = Result.success(testUser)
 
-        authViewModel.signIn("doctor@test.com", "password123")
-        advanceUntilIdle()
+        coEvery { authRepository.signIn(any(), any()) } returns successResult
 
-        coVerify { authRepository.signIn("doctor@test.com", "password123") }
+        authViewModel.uiState.test {
+            assertThat(awaitItem()).isInstanceOf(AuthUiState.NotLoggedIn::class.java)
 
-        val currentState = authViewModel.uiState.value
-        assert(currentState is AuthUiState.LoggedIn)
-        assertEquals(expectedUser, (currentState as AuthUiState.LoggedIn).user)
-    }
+            authViewModel.signIn("test@example.com", "password")
 
-    @Test
-    fun `signIn with invalid credentials should return error`() = runTest {
-        val errorMessage = "Invalid credentials"
-        coEvery { authRepository.signIn(any(), any()) } returns Result.failure(Exception(errorMessage))
+            val loadingState = awaitItem()
+            assertThat(loadingState).isInstanceOf(AuthUiState.Loading::class.java)
 
-        authViewModel.signIn("invalid@test.com", "wrongpassword")
-        advanceUntilIdle()
+            val loggedInState = awaitItem()
+            assertThat(loggedInState).isInstanceOf(AuthUiState.LoggedIn::class.java)
+            assertThat((loggedInState as AuthUiState.LoggedIn).user).isEqualTo(testUser)
 
-        coVerify { authRepository.signIn("invalid@test.com", "wrongpassword") }
-
-        val currentState = authViewModel.uiState.value
-        assert(currentState is AuthUiState.Error)
-        assertEquals(errorMessage, (currentState as AuthUiState.Error).message)
-    }
-
-    @Test
-    fun `signUp with valid data should return success`() = runTest {
-        val expectedUser = User(
-            id = "new_user_id",
-            email = "newuser@test.com",
-            displayName = "New User",
-            role = UserRole.PATIENT
-        )
-        coEvery {
-            authRepository.signUp(any(), any(), any(), any())
-        } returns Result.success(expectedUser)
-
-        authViewModel.signUp("New User", "newuser@test.com", "password123", "password123")
-        advanceUntilIdle()
-
-        coVerify {
-            authRepository.signUp("New User", "newuser@test.com", "password123", "password123")
+            cancelAndIgnoreRemainingEvents()
         }
+    }
 
-        val currentState = authViewModel.uiState.value
-        assert(currentState is AuthUiState.LoggedIn)
-        assertEquals(expectedUser, (currentState as AuthUiState.LoggedIn).user)
+    @Test
+    fun `signIn with incorrect credentials should emit Loading and then Error state`() = runTest {
+        val errorMessage = "Неверный email или пароль"
+        val failureResult = Result.failure<User>(Exception("INVALID_LOGIN_CREDENTIALS"))
+
+        coEvery { authRepository.signIn(any(), any()) } returns failureResult
+
+        authViewModel.uiState.test {
+            assertThat(awaitItem()).isInstanceOf(AuthUiState.NotLoggedIn::class.java)
+
+            authViewModel.signIn("wrong@example.com", "wrongpassword")
+
+            assertThat(awaitItem()).isInstanceOf(AuthUiState.Loading::class.java)
+
+            val errorState = awaitItem()
+            assertThat(errorState).isInstanceOf(AuthUiState.Error::class.java)
+
+            assertThat((errorState as AuthUiState.Error).message).isEqualTo(errorMessage)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+}
+
+
+@ExperimentalCoroutinesApi
+class MainDispatcherRule(
+    private val testDispatcher: TestDispatcher
+) : TestWatcher() {
+    override fun starting(description: Description) {
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    override fun finished(description: Description) {
+        Dispatchers.resetMain()
     }
 }

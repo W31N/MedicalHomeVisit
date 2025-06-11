@@ -20,7 +20,7 @@ import com.example.medicalhomevisit.presentation.viewmodel.AuthViewModel
 @Composable
 fun ProfileScreen(
     viewModel: AuthViewModel,
-    navController: NavController,
+    navController: NavController?,
     onNavigateBack: () -> Unit,
     onSignOut: () -> Unit
 ) {
@@ -120,7 +120,7 @@ fun ProfileScreen(
                     }
                 }
 
-                if (user.role == UserRole.PATIENT) {
+                if (user.role == UserRole.PATIENT && navController != null) {
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Button(

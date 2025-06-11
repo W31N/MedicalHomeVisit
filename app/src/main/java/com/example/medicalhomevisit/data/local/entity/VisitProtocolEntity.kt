@@ -39,7 +39,7 @@ import java.util.Date
     var systolicBP: Int?,
     var diastolicBP: Int?,
     var pulse: Int?,
-    var additionalVitals: Map<String, String> = emptyMap(), // Потребует TypeConverter
+    var additionalVitals: Map<String, String> = emptyMap(),
     var createdAt: Date,
     var updatedAt: Date,
 

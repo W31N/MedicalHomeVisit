@@ -130,6 +130,7 @@ dependencies {
     testImplementation ("app.cash.turbine:turbine:1.2.0")
     testImplementation ("org.robolectric:robolectric:4.14.1")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation ("com.google.truth:truth:1.1.3")
 
 
     androidTestImplementation(libs.androidx.junit)
